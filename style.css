@@ -140,6 +140,33 @@ input:focus, textarea:focus {
 
 input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
 
+/* ---------------- scrollbars ---------------- */
+
+/* Two places in the tool scroll their own contents - a list of pasted URLs in
+   the box above, and a card blurb too long for its tile - and they are styled
+   together so the tool has one scrollbar rather than one per feature. The
+   default is a wide light-grey bar that sits on a dark panel looking like
+   something spilled on it.
+     Firefox reads the two standard properties; Chrome and Safari read the
+   ::-webkit- rules and ignore the standard ones. Both are needed, and neither
+   is a fallback for the other. */
+textarea,
+.bulk-card-tag {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+textarea::-webkit-scrollbar,
+.bulk-card-tag::-webkit-scrollbar { width: 6px; }
+
+textarea::-webkit-scrollbar-track,
+.bulk-card-tag::-webkit-scrollbar-track { background: transparent; }
+
+textarea::-webkit-scrollbar-thumb,
+.bulk-card-tag::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+textarea::-webkit-scrollbar-thumb:hover,
+.bulk-card-tag::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
 .btn {
   padding: 10px 16px;
   background: var(--bg-input);
@@ -267,12 +294,7 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
   min-height: 2.8em;    /* reserve two lines so short blurbs still line up */
   max-height: 14em;     /* ten lines */
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
 }
-.bulk-card-tag::-webkit-scrollbar { width: 6px; }
-.bulk-card-tag::-webkit-scrollbar-track { background: transparent; }
-.bulk-card-tag::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 .bulk-card-creator { font-size: 0.72rem; color: var(--text-faint); margin: 4px 0 0; }
 
 /* ---------------- loading placeholders ---------------- */
