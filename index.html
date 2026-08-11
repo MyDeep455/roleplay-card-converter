@@ -31,8 +31,9 @@
     <h2>Convert & download Characters</h2>
     <p class="browse-links">
       Browse
-      <a href="https://chub.ai/" target="_blank" rel="noopener noreferrer">chub.ai</a> or
-      <a href="https://character-tavern.com/search/cards" target="_blank" rel="noopener noreferrer">Character Tavern</a>
+      <a href="https://chub.ai/" target="_blank" rel="noopener noreferrer">chub.ai</a>,
+      <a href="https://character-tavern.com/search/cards" target="_blank" rel="noopener noreferrer">Character Tavern</a> or
+      <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer">JanitorAI</a>
       &rarr; copy the desired URLs out of the adress bar on top of your screen &rarr; paste it below &rarr; click "Convert"
     </p>
     <p></p>
@@ -41,7 +42,7 @@
            up as those five literal characters. & must be &amp; for the same
            reason: it starts an entity wherever it appears. -->
       <textarea id="url-input" rows="8" spellcheck="false"
-        placeholder="paste character card URLs:&#10;e.g. https://chub.ai/characters/Anonymous/alice-the-bully-40f0cc011ae1&#10;e.g. https://character-tavern.com/character/makima/Alice%20the%20bully&#10;&#10;or a whole search URL:&#10;e.g. https://chub.ai/characters?sort=trending"></textarea>
+        placeholder="paste character card URLs:&#10;e.g. https://chub.ai/characters/Anonymous/alice-the-bully-40f0cc011ae1&#10;e.g. https://character-tavern.com/character/makima/Alice%20the%20bully&#10;e.g. https://janitorai.com/characters/62650d46-bcda-4eac-90a5-1162cb3d5d80_character-mafia-boss&#10;&#10;or a whole search URL:&#10;e.g. https://chub.ai/characters?sort=trending"></textarea>
       <button id="convert-btn" class="btn btn-primary">Convert</button>
     </div>
 
@@ -114,14 +115,16 @@
     <h2>Settings</h2>
 
     <h3>Platform tokens</h3>
-    <p class="hint">Not required for public cards. Stored only in this tool's IndexedDB on your machine,
-      and sent to the matching platform and nowhere else.</p>
+    <p class="hint">Optional on chub.ai and unused on Character Tavern, but close to required on
+      JanitorAI &mdash; signed out it serves only the first page of results and hides every character
+      definition. Stored only in this tool's IndexedDB on your machine, and sent to the matching
+      platform and nowhere else.</p>
     <div id="token-fields"></div>
 
     <h3>Proxy</h3>
     <p class="hint">Character Tavern's search API is the only thing this tool cannot fetch directly, so
       the proxy affects exactly one feature: mirroring a library on that site. Everything else &mdash;
-      all of chub.ai, single cards, avatars, galleries &mdash; ignores it completely.</p>
+      all of chub.ai, all of JanitorAI, single cards, avatars, galleries &mdash; ignores it completely.</p>
     <label class="check"><input type="checkbox" id="use-proxy" checked /> Use the proxy for Character Tavern library mirroring</label>
     <div id="proxy-detail" class="hint"></div>
 

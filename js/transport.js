@@ -270,7 +270,10 @@ function hostOf(url) {
 function describeStatus(status, host) {
   if (status === 404) return `${host} returned 404 - that card or page does not exist. Check the URL.`;
   if (status === 401 || status === 403) {
-    return `${host} returned ${status} - access denied. If this is a private card, add your Chub token in Settings.`;
+    // Deliberately does not name a site: three platforms reach this, and each
+    // wants a different token. Adapters that can say something more specific
+    // (JanitorAI's 401 always means "signed out") replace this themselves.
+    return `${host} returned ${status} - access denied. Adding that site's token in Settings may fix it.`;
   }
   if (status === 429) return `${host} returned 429 (too many requests). Wait a minute, then try again.`;
   if (status >= 500) return `${host} returned ${status} - the site is having trouble. Try again later.`;

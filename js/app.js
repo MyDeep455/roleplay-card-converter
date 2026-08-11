@@ -336,6 +336,7 @@ async function startMirror(page, sourceUrl = null) {
 
     const result = await adapter.listLibrary(raw, page, { token: state.tokens[adapter.id] || null });
 
+    avatarGeneration++;          // a mirrored page carries its own thumbnails
     state.bulk = {
       adapter, url: raw, page,
       totalPages: result.totalPages || 1,
@@ -421,6 +422,7 @@ function loadUrlList(lines, status) {
     items, selected: new Set(items.map(i => i.key)), urlList: true,
   };
   renderBulkGrid();
+  hydrateListAvatars(items);
 
   const notes = [];
   if (searches.length) notes.push(`${searches.length} search link(s) skipped - paste those one at a time`);
@@ -429,6 +431,43 @@ function loadUrlList(lines, status) {
   setStatus(status,
     `${items.length} card link(s) loaded and selected.${notes.length ? ' ' + notes.join('; ') + '.' : ''}`,
     notes.length ? 'error' : 'ok');
+}
+
+// A pasted link usually becomes a thumbnail for free, because chub and
+// Character Tavern both derive the card image from the card's own URL. On
+// JanitorAI it cannot: the avatar's filename appears nowhere in the URL, so it
+// has to be asked for. Adapters that need that expose `hydrateAvatars`, and
+// this lets them fill the tiles in after the grid is already up rather than
+// holding a blank page while a list of links is looked up one by one.
+//
+// Whatever it was working on stops mattering the moment the grid is replaced,
+// which `generation` is for - a slow reply for a previous paste must not
+// redraw tiles that are no longer on screen.
+let avatarGeneration = 0;
+
+function hydrateListAvatars(items) {
+  const mine = ++avatarGeneration;
+  const byAdapter = new Map();
+
+  items.forEach(item => {
+    let adapter;
+    try { ({ adapter } = adapterForUrl(item.cardUrl)); } catch { return; }
+    if (typeof adapter.hydrateAvatars !== 'function') return;
+    if (!byAdapter.has(adapter)) byAdapter.set(adapter, []);
+    byAdapter.get(adapter).push(item);
+  });
+
+  byAdapter.forEach((group, adapter) => {
+    adapter.hydrateAvatars(group, {
+      token: state.tokens[adapter.id] || null,
+      cancelled: () => avatarGeneration !== mine,
+      onItem: (item, patch) => {
+        if (avatarGeneration !== mine) return;
+        Object.assign(item, patch);
+        renderBulkGrid();
+      },
+    }).catch(() => { /* thumbnails are decoration; the links still convert */ });
+  });
 }
 
 /* =========================================================================
@@ -504,6 +543,7 @@ async function loadDiscover() {
 }
 
 function clearBulkGrid() {
+  avatarGeneration++;            // abandon any thumbnails still being looked up
   state.bulk = {
     adapter: null, url: '', page: 1, totalPages: 1,
     items: [], selected: new Set(), urlList: null,

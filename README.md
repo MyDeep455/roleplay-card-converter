@@ -1,6 +1,7 @@
 # Roleplay Card Converter
 
-Downloads character cards from **chub.ai** and **character-tavern.com** and converts them into the
+Downloads character cards from **chub.ai**, **character-tavern.com** and **janitorai.com** and
+converts them into the
 [Casual Character Chat](https://github.com/MyDeep455/casual-character-chat-app) JSON format, ready to
 import.
 
@@ -12,8 +13,8 @@ Nothing to install, nothing to sign up for. It runs entirely in your browser.
 
 ## What it does
 
-Paste any chub.ai or Character Tavern link into the one box and press **Convert**. What you pasted
-decides what happens — there is nothing to choose first:
+Paste any chub.ai, Character Tavern or JanitorAI link into the one box and press **Convert**. What you
+pasted decides what happens — there is nothing to choose first:
 
 | What you paste | What you get |
 |---|---|
@@ -25,7 +26,7 @@ Converted cards are kept in your browser's own storage until you clear them, and
 Casual Character Chat backup file — one card at a time, or all of them in a single file.
 
 **Your data stays yours.** There is no account, no server storing anything, and nothing is uploaded.
-The tool talks to the two card sites and to nothing else. Converted cards live in your browser's
+The tool talks to the three card sites and to nothing else. Converted cards live in your browser's
 IndexedDB on your own machine.
 
 ---
@@ -38,6 +39,7 @@ Paste the card's page URL and press **Convert**:
 
 - `https://chub.ai/characters/author/character-name`
 - `https://character-tavern.com/character/author/card_name`
+- `https://janitorai.com/characters/<id>_character-name`
 
 ### A whole search
 
@@ -78,10 +80,13 @@ Browsers refuse to read a response from another site unless that site opts in wi
 |---|---|---|
 | `api.chub.ai` — cards, search, galleries | yes | direct from your browser |
 | `ct-cards.storage.character-tavern.com` — card PNGs, avatars | yes | direct from your browser |
+| `janitorai.com/hampter` — cards and listings | yes | direct from your browser |
+| `ella.janitorai.com` — avatars, description art | yes | direct from your browser |
 | `character-tavern.com/api/search/cards` — library listing | **no**, and rejects preflight with 405 | needs a server |
 
 So exactly one feature — **mirroring a Character Tavern library** — cannot work from a web page alone.
-Single Character Tavern cards, their images, and the entirety of chub.ai are all unaffected.
+Single Character Tavern cards, their images, the entirety of chub.ai and the entirety of JanitorAI are
+all unaffected.
 
 The **proxy pill** in the header tells you where you stand. If it says the proxy is unavailable,
 everything still works except that one thing.
@@ -224,6 +229,18 @@ excluded throughout. The output contains only the fields of the app's character 
 Chub accepts an optional API token (**Settings**) for reaching your own private cards. Public cards
 need nothing, and Character Tavern needs nothing at all.
 
+**JanitorAI is the exception: there a token is close to required.** Signed out, its API is a shop
+window — it serves the first page of results and refuses every page after it, refuses searches
+outright, and returns `null` for every character definition, so cards convert into name-and-avatar
+shells. Signed in, all of it works.
+
+To get one: log in on janitorai.com, then **DevTools → Application → Cookies → `sb-auth-auth-token.0`**,
+and paste the whole value into **Settings**. The raw JWT and a `Bearer …` line are accepted too. It is
+a session token and expires after a few hours, so re-copy it when searches start failing.
+
+Even with a token, a card whose author turned **show definition** off keeps its definition hidden —
+roughly two in five. Those still convert, on their public description, and arrive marked `partial`.
+
 A token you enter is stored in your browser's IndexedDB on your own machine and sent only to the site
 it belongs to. When a request goes through the proxy it is forwarded once and never logged or stored.
 
@@ -236,7 +253,7 @@ index.html                 UI
 style.css                  styling
 js/config.js               the one file you may need to edit (hosted proxy URL)
 js/transport.js            fetching; one host proxied, everything else direct
-js/adapters.js             chub.ai and Character Tavern
+js/adapters.js             chub.ai, Character Tavern and JanitorAI
 js/convert.js              card -> Casual Character Chat schema
 js/media.js                PNG card extraction, WebP re-encoding
 js/db.js                   IndexedDB (cards + settings)
@@ -255,5 +272,5 @@ uninstall-autostart.cmd    undo the above
 
 MIT — see [LICENSE](LICENSE).
 
-Not affiliated with chub.ai or character-tavern.com. Respect the terms of whichever site you download
+Not affiliated with chub.ai, character-tavern.com or janitorai.com. Respect the terms of whichever site you download
 from, and the wishes of the people whose cards you convert.
