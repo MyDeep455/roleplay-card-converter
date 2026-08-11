@@ -79,17 +79,17 @@ Single Character Tavern cards, their images, and the entirety of chub.ai are all
 The **proxy pill** in the header tells you where you stand. If it says the proxy is unavailable,
 everything still works except that one thing.
 
-### "Proxy unreachable" but the proxy is fine
+### "Proxy blocked" — an extension, not the server
 
-Check the browser console. If it says **`ERR_BLOCKED_BY_CLIENT`**, the request never left your
-browser — an ad blocker or privacy extension stopped it, and no amount of retrying will help. Ad
-blocking lists routinely cover the shared domains free hosting platforms hand out, and a blocked
-request is indistinguishable from a dead server as far as the page can tell.
+Ad blockers stop this, and more often than you would expect: blocking lists cover the shared domains
+free hosting platforms hand out, so the proxy gets caught by association rather than for anything it
+does. uBlock Origin, Adblock Plus, Ghostery and Privacy Badger have all been seen doing it.
 
-Allow this site in your blocker — uBlock Origin, Adblock Plus, Ghostery and Privacy Badger all do
-this from their toolbar icon. Opening the page in a private window, where extensions are usually
-off, confirms the diagnosis in seconds. Only
-Character Tavern library mirroring is affected; nothing else on the page makes that request.
+Click your blocker's toolbar icon and allow this site, then click the proxy pill to retry. Opening
+the page in a private window, where extensions are usually switched off, confirms the diagnosis in
+seconds. The browser console names it outright as `ERR_BLOCKED_BY_CLIENT`.
+
+Only Character Tavern library mirroring is affected — nothing else on the page makes that request.
 
 `proxy.js` is what fills that gap. It is about 250 lines, has no dependencies, and only ever fetches
 from an allow-list of the two card sites, so it cannot be pointed at anything else.
