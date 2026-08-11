@@ -241,15 +241,38 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
 .bulk-card .noimg { width: 100%; height: 100%; display: grid; place-items: center; color: var(--text-faint); font-size: 0.75rem; }
 
 .bulk-card-body { padding: 9px 11px 11px; }
+
+/* Two lines rather than one: card names on these sites are routinely
+   "Name | Series - Alt version", and a single line cut most of them off. */
 .bulk-card-name {
   font-size: 0.86rem; font-weight: 600; margin: 0 0 3px;
-  display: -webkit-box; -webkit-line-clamp: 1; line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+
+/* The tagline is the whole reason to look at the grid instead of the site, so
+   it is shown in full rather than cut to two lines - it just scrolls once it
+   gets past ten, because the three platforms disagree wildly about how long
+   this field is. Character Tavern never exceeds five lines and chub is
+   typically four, so both simply show in full; JanitorAI's are the size of a
+   card description and scroll.
+     Letting the tile grow instead was the alternative, and it does not work in
+   a grid: a row is as tall as its tallest tile, so one long blurb would leave
+   every card beside it stranded at the top of a wall of empty space.
+     No overscroll-behavior here on purpose. Pinning the scroll would turn every
+   tile the pointer crosses into a trap on the way down the page; letting it
+   chain means the page carries on once the blurb runs out. */
 .bulk-card-tag {
   font-size: 0.76rem; color: var(--text-dim); margin: 0;
-  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-  min-height: 2.2em;
+  line-height: 1.4;
+  min-height: 2.8em;    /* reserve two lines so short blurbs still line up */
+  max-height: 14em;     /* ten lines */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
 }
+.bulk-card-tag::-webkit-scrollbar { width: 6px; }
+.bulk-card-tag::-webkit-scrollbar-track { background: transparent; }
+.bulk-card-tag::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 .bulk-card-creator { font-size: 0.72rem; color: var(--text-faint); margin: 4px 0 0; }
 
 /* ---------------- loading placeholders ---------------- */

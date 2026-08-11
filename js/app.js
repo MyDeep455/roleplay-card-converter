@@ -750,6 +750,21 @@ function renderBulkGrid() {
 
     card.addEventListener('click', e => {
       if (e.target.classList.contains('bulk-check')) return;   // the checkbox fires its own change
+
+      // A long tagline scrolls inside the tile, and clicking its scrollbar
+      // still lands as a click on the card - so reaching for the bar would tick
+      // the box instead.
+      //
+      // Measured as a band inside the right edge rather than "past the content
+      // width", because an overlay scrollbar - which is what Chrome draws here -
+      // takes no layout space at all: clientWidth and offsetWidth are equal, so
+      // that comparison silently never fires. The band costs the last few pixels
+      // of a line, and only on blurbs actually long enough to scroll.
+      const tag = e.target;
+      if (tag.classList.contains('bulk-card-tag') &&
+          tag.scrollHeight > tag.clientHeight &&
+          e.offsetX > tag.clientWidth - 12) return;
+
       toggle();
     });
     card.querySelector('.bulk-check').addEventListener('change', toggle);

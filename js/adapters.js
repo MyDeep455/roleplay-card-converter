@@ -614,11 +614,16 @@ const janitorai = {
     };
   },
 
-  // The grid gives one line under the name, and a JanitorAI description can
-  // run to pages, so the tile gets its opening.
+  // Handed to the grid whole, deliberately. It used to be cut at 140
+  // characters, which was the wrong place to decide that: the point of the
+  // grid is to judge a card without opening the site, and a JanitorAI
+  // description is the whole of what that site shows you about a card. How
+  // much fits is the tile's problem, and the tile solves it by scrolling.
+  //
+  // Line breaks are collapsed because the tile is a paragraph of preview, not
+  // a document - the card itself keeps the author's own formatting.
   blurb(html) {
-    const text = htmlToText(html).replace(/\s+/g, ' ').trim();
-    return text.length > 140 ? `${text.slice(0, 137).trimEnd()}...` : text;
+    return htmlToText(html).replace(/\s+/g, ' ').trim();
   },
 
   // The site keeps its browse state in the query string - `sort`, `mode` and
