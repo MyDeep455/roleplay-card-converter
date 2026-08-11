@@ -234,9 +234,23 @@ window — it serves the first page of results and refuses every page after it, 
 outright, and returns `null` for every character definition, so cards convert into name-and-avatar
 shells. Signed in, all of it works.
 
-To get one: log in on janitorai.com, then **DevTools → Application → Cookies → `sb-auth-auth-token.0`**,
-and paste the whole value into **Settings**. The raw JWT and a `Bearer …` line are accepted too. It is
-a session token and expires after a few hours, so re-copy it when searches start failing.
+The tool cannot fetch that token for you, and not for lack of trying — browsers seal each site's
+cookies off from every other site, JanitorAI answers with `Access-Control-Allow-Origin: *` (which
+browsers refuse for credentialed requests, so its login cannot be borrowed), and it refuses to be
+framed. All three were tested; all three are walls.
+
+So the converter ships a **bookmarklet** instead. Convert any JanitorAI card while signed out and a
+panel appears with a *Get my JanitorAI token* button: drag it to your bookmarks bar (or copy its code
+into a bookmark on a phone), tap it while on janitorai.com, and it copies your token ready to paste
+into **Settings**. It reads the cookie in one tap and copies **only the access token**, never the
+refresh token beside it — the token it copies expires in hours; the one it leaves behind could mint
+new logins.
+
+**On a phone this is the only route that works at all**, since there is no DevTools panel to read a
+cookie from. On a computer you can skip it: **F12 → Application → Cookies → `sb-auth-auth-token.0`**
+(plus `.1` if present — long sessions are split across two cookies) and paste the value in. The raw
+JWT and a `Bearer …` line are accepted too. It expires after a few hours, so repeat when searches
+start failing.
 
 Even with a token, a card whose author turned **show definition** off keeps its definition hidden —
 roughly two in five. Those still convert, on their public description, and arrive marked `partial`.

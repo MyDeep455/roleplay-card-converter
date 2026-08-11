@@ -96,6 +96,123 @@ function isPartial(character) {
   return !hasGreeting || body.length < 40;
 }
 
+/* ---------------- the JanitorAI token helper ---------------- */
+
+/**
+ * A bookmarklet that copies your JanitorAI token, run from janitorai.com.
+ *
+ * This page cannot fetch the token itself, and not for want of trying: cookies
+ * are origin-scoped, so `document.cookie` here cannot see janitorai.com's;
+ * `credentials: 'include'` is refused because JanitorAI answers every request
+ * with `Access-Control-Allow-Origin: *`, which browsers reject outright for a
+ * credentialed request; and a janitorai.com iframe hands back a null
+ * contentDocument. All three were tried and all three are walls, by design.
+ *
+ * What is possible is code running *on* janitorai.com, which is what a
+ * bookmarklet is. It matters most on phones, where there is no DevTools panel
+ * to read a cookie out of and this is the only route that exists at all.
+ *
+ * Only the access token is copied, never the whole cookie. The cookie also
+ * carries a refresh token, which could mint fresh sessions long after this one
+ * expires; the access token simply dies in a few hours.
+ *
+ * Written as a function and serialised, rather than kept as one long string,
+ * so it stays readable and gets syntax-checked like the rest of the file. It
+ * therefore has no `//` comments and no multi-line strings - the newlines are
+ * flattened below so the result survives being pasted into a bookmark field.
+ */
+function jaiTokenGrabber() {
+  var chunks = {}, cookies = document.cookie ? document.cookie.split('; ') : [], i;
+  for (i = 0; i < cookies.length; i++) {
+    var eq = cookies[i].indexOf('=');
+    if (eq < 0) continue;
+    var hit = cookies[i].slice(0, eq).match(/^sb-.*auth-token(?:\.(\d+))?$/);
+    if (hit) chunks[hit[1] === undefined ? 0 : Number(hit[1])] = decodeURIComponent(cookies[i].slice(eq + 1));
+  }
+  var order = Object.keys(chunks).sort(function (a, b) { return a - b; }), raw = '';
+  for (i = 0; i < order.length; i++) raw += chunks[order[i]];
+  if (!raw) {
+    alert('No JanitorAI login found on this page.\n\nOpen janitorai.com, log in, and tap this bookmark again while you are on that site.');
+    return;
+  }
+  var body = raw.replace(/^base64-/, '').replace(/-/g, '+').replace(/_/g, '/'), decoded = '';
+  try { decoded = atob(body.slice(0, body.length - (body.length % 4))); } catch (e) { decoded = ''; }
+  var jwt = /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/;
+  var token = (decoded.match(jwt) || raw.match(jwt) || [])[0];
+  if (!token) {
+    alert('Found a JanitorAI cookie, but no token inside it.\n\nLog out of JanitorAI and back in, then tap this again.');
+    return;
+  }
+  var ask = function () { window.prompt('Copy this, then paste it into the Card Converter’s Settings:', token); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(token).then(
+      function () { alert('JanitorAI token copied.\n\nGo back to the Card Converter, open Settings, and paste it into the JanitorAI box.'); },
+      ask
+    );
+  } else {
+    ask();
+  }
+}
+
+// Newlines are flattened because several browsers' bookmark editors keep only
+// the first line of a pasted URL, which would silently save a broken snippet.
+const JAI_BOOKMARKLET =
+  'javascript:(' + jaiTokenGrabber.toString().replace(/\s*\n\s*/g, ' ') + ')();';
+
+/* ---------------- the JanitorAI "empty card" notice ---------------- */
+
+// Signed out, JanitorAI returns null for every definition field, so its cards
+// convert into a name, an avatar and a blurb - no greeting, no personality.
+// Nothing errors, which is exactly the problem: without this the cards simply
+// look disappointing and there is no way to tell that one setting fixes it.
+//
+// Only raised when there is no token to begin with. With one, a card that is
+// still empty is one whose author hid the definition, and no amount of
+// pointing at Settings would change that.
+function noteEmptyJanitorCards(count) {
+  if (!count || state.tokens.janitorai) return;
+  const notice = $('jai-token-notice');
+  if (notice) notice.classList.remove('hidden');
+}
+
+$('jai-token-notice-close').addEventListener('click', () => {
+  $('jai-token-notice').classList.add('hidden');
+});
+
+// Set from script rather than written into the HTML: the snippet is long and
+// full of quotes and angle brackets, and hand-escaping it into an attribute is
+// the kind of thing that breaks silently on the next edit.
+//
+// Dragging it to a bookmarks bar is the desktop route; clicking it here does
+// nothing useful, but it fails politely - it finds no JanitorAI cookie on this
+// origin and says exactly that.
+$('jai-bookmarklet').href = JAI_BOOKMARKLET;
+
+$('jai-copy-bookmarklet').addEventListener('click', async () => {
+  const btn = $('jai-copy-bookmarklet');
+  const said = ok => { btn.textContent = ok ? 'Copied' : 'Press Ctrl+C'; setTimeout(() => { btn.textContent = 'Copy the code'; }, 2500); };
+  try {
+    await navigator.clipboard.writeText(JAI_BOOKMARKLET);
+    said(true);
+  } catch {
+    // Clipboard access needs a secure context, which a copy opened straight
+    // off the filesystem is not. Selecting it still lets Ctrl+C do the job.
+    const ta = document.createElement('textarea');
+    ta.value = JAI_BOOKMARKLET;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    said(document.execCommand?.('copy') === true);
+    ta.remove();
+  }
+});
+
+// A card converted from JanitorAI that arrived without its definition.
+function isEmptyJanitorCard(card, character) {
+  return card.sourcePlatform === 'JanitorAI' && !character.scenarios.length;
+}
+
 async function storeCharacter(character, meta) {
   const thumbnail = character.avatar
     ? await shrinkThumb(character.avatar)
@@ -219,6 +336,10 @@ $('settings-save').addEventListener('click', async () => {
   await setSetting('tokens', state.tokens);
   await setSetting('useProxy', state.useProxy);
   $('settings-modal').classList.add('hidden');
+
+  // The notice exists to ask for exactly this. Leaving it up after it has been
+  // acted on would read as "that did not work".
+  if (state.tokens.janitorai) $('jai-token-notice').classList.add('hidden');
 });
 
 /* =========================================================================
@@ -277,6 +398,7 @@ async function convertSingle(raw, adapter) {
     const character = toCccCharacter(card);
     await storeCharacter(character, { platform: card.sourcePlatform || adapter.label, sourceUrl: raw });
     await renderResults();
+    noteEmptyJanitorCards(isEmptyJanitorCard(card, character) ? 1 : 0);
 
     const extras = [];
     if (character.gallery.length) extras.push(`${character.gallery.length} gallery image(s)`);
@@ -666,7 +788,7 @@ $('bulk-convert').addEventListener('click', async () => {
   progress.classList.remove('hidden');
   $('bulk-convert').disabled = true;
 
-  let done = 0, failed = 0;
+  let done = 0, failed = 0, emptyJanitor = 0;
   const failures = [];
 
   // Whether the sites actually refused anything, as opposed to the run hitting
@@ -693,6 +815,7 @@ $('bulk-convert').addEventListener('click', async () => {
         platform: card.sourcePlatform || adapter.label,
         sourceUrl: item.cardUrl,
       });
+      if (isEmptyJanitorCard(card, character)) emptyJanitor++;
       done++;
     } catch (err) {
       failed++;
@@ -708,6 +831,7 @@ $('bulk-convert').addEventListener('click', async () => {
   progress.classList.add('hidden');
   $('bulk-convert').disabled = false;
   await renderResults();
+  noteEmptyJanitorCards(emptyJanitor);
 
   const cancelled = state.cancelBulk ? ' (cancelled early)' : '';
   setStatus(status,

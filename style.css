@@ -321,6 +321,31 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
 .notice p { margin: 0 0 8px; color: var(--text-dim); font-size: 0.85rem; }
 .notice p:last-child { margin-bottom: 0; }
 
+/* Numbered steps read as instructions to follow rather than more prose, which
+   is the difference between someone doing them and skimming past. */
+.notice ol { margin: 0 0 8px; padding-left: 20px; color: var(--text-dim); font-size: 0.85rem; }
+.notice ol li { margin-bottom: 3px; }
+.notice ol li:last-child { margin-bottom: 0; }
+.notice strong { color: var(--text); font-weight: 600; }
+.notice h4 { margin: 12px 0 5px; font-size: 0.85rem; color: var(--text); }
+.notice .btn-small { vertical-align: baseline; margin: 0 2px; }
+
+/* The one thing on the page meant to be dragged rather than clicked, so it is
+   styled as an object to pick up - a chip with a grab cursor - instead of as
+   another link, which would invite a click that does nothing here. */
+.bookmarklet {
+  display: inline-block;
+  padding: 3px 10px; margin: 0 2px;
+  background: var(--bg-input);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent) !important;
+  font-size: 0.82rem; font-weight: 600;
+  cursor: grab;
+}
+.bookmarklet:hover { background: var(--accent); color: #fff !important; border-bottom-color: var(--accent); }
+.bookmarklet:active { cursor: grabbing; }
+
 /* Matches the browse links above - without this it falls through to the
    browser's default blue, which is the one colour on the page nothing else
    uses. */
