@@ -43,7 +43,7 @@ function setStatus(el, message, kind = '') {
 // answered and said no; a mistyped URL gets no such excuse.
 const REGION_HINT =
   ' If you can open it on the site itself, your connection is being shown a filtered library here - ' +
-  'see "Missing characters?" under Converted cards.';
+  'see "Missing characters?" below.';
 
 function describeError(err) {
   const msg = err?.message || String(err);

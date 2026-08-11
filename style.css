@@ -300,9 +300,17 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
 
 /* ---------------- region notice ---------------- */
 
+/* Below the grid rather than beside the results heading: out of the way until
+   something goes wrong, but sitting exactly where someone looks after a page of
+   cards has failed to produce what they expected. */
+.region-info-wrap { margin-top: 22px; text-align: center; }
+
 .notice {
   position: relative;
-  margin: 14px 0 0;
+  /* The wrapper centres the button; prose still reads left-aligned. */
+  text-align: left;
+  max-width: 760px;
+  margin: 14px auto 0;
   padding: 14px 40px 14px 16px;
   background: var(--bg-raised);
   border: 1px solid var(--border-strong);
