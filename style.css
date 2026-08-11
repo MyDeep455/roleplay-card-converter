@@ -101,34 +101,23 @@ code {
   .pill-wake .dot { animation: none; }
 }
 
-/* ---------------- tabs ---------------- */
-
-.tabs {
-  display: flex; gap: 4px;
-  padding: 0 24px;
-  background: var(--bg-raised);
-  border-bottom: 1px solid var(--border);
-}
-
-.tab {
-  padding: 11px 18px;
-  background: none; border: none; border-bottom: 2px solid transparent;
-  color: var(--text-dim); font-size: 0.9rem; font-family: inherit;
-  cursor: pointer;
-}
-.tab:hover { color: var(--text); }
-.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-
 /* ---------------- layout ---------------- */
 
 main, .results { max-width: 1100px; margin: 0 auto; padding: 24px; }
 .results { border-top: 1px solid var(--border); margin-top: 8px; }
 
-.panel { display: none; }
-.panel.active { display: block; }
-
 .row { display: flex; gap: 10px; flex-wrap: wrap; }
-.row input[type="url"] { flex: 1 1 340px; }
+
+/* The one input takes a single link most of the time but has to accept several
+   pasted at once, so it is a textarea sized to look like a field rather than a
+   writing surface, and the button lines up with its first row. */
+.row #url-input {
+  flex: 1 1 340px;
+  resize: vertical;
+  min-height: 46px;
+  line-height: 1.45;
+}
+.row .btn { align-self: flex-start; }
 
 /* ---------------- form controls ---------------- */
 
@@ -190,22 +179,7 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
   color: var(--text-dim); font-size: 0.78rem;
 }
 
-/* ---------------- support table ---------------- */
-
-.support-table, .urllist { margin-top: 22px; }
-.support-table summary, .urllist summary {
-  cursor: pointer; color: var(--text-dim); font-size: 0.87rem; padding: 6px 0;
-}
-.support-table summary:hover, .urllist summary:hover { color: var(--text); }
-.support-table table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.84rem; }
-.support-table th, .support-table td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); }
-.support-table th { color: var(--text-faint); font-weight: 500; }
-.support-table td.ok   { color: var(--ok); }
-.support-table td.warn { color: var(--warn); }
-.support-table td.no   { color: var(--danger); }
-.urllist textarea { margin-bottom: 10px; }
-
-/* ---------------- bulk grid ---------------- */
+/* ---------------- card picker grid ---------------- */
 
 .bulk-toolbar {
   display: flex; justify-content: space-between; align-items: center;
@@ -266,16 +240,6 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
 .progress-bar { flex: 1 1 220px; height: 7px; background: var(--bg-input); border-radius: 999px; overflow: hidden; }
 .progress-bar > div { height: 100%; width: 0%; background: var(--accent); transition: width 0.2s; }
 .progress-text { font-size: 0.83rem; color: var(--text-dim); flex: 1 1 200px; }
-
-/* ---------------- manual ---------------- */
-
-.manual-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-.manual-box {
-  padding: 16px; background: var(--bg-raised);
-  border: 1px solid var(--border); border-radius: var(--radius);
-}
-.manual-box h3 { margin-top: 0; }
-.manual-box textarea { margin-bottom: 10px; }
 
 /* ---------------- results ---------------- */
 

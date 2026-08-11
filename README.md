@@ -12,11 +12,14 @@ Nothing to install, nothing to sign up for. It runs entirely in your browser.
 
 ## What it does
 
-| | |
+Paste any chub.ai or Character Tavern link into the one box and press **Convert**. What you pasted
+decides what happens — there is nothing to choose first:
+
+| What you paste | What you get |
 |---|---|
-| **Single card** | Paste a card's page URL, press **Convert**. |
-| **Bulk mirror** | Paste a search or library URL, tick the cards you want, convert them in one go. |
-| **Manual / file** | Drop in a character card PNG or JSON you already have. |
+| A **card** link | Converted straight away |
+| A **search** or browse link | A grid of what it found; tick the ones you want |
+| **Several card links**, one per line | The same grid, everything preselected |
 
 Converted cards are kept in your browser's own storage until you clear them, and downloaded as a
 Casual Character Chat backup file — one card at a time, or all of them in a single file.
@@ -29,29 +32,33 @@ IndexedDB on your own machine.
 
 ## Using it
 
-### Single card
+### A single card
 
 Paste the card's page URL and press **Convert**:
 
 - `https://chub.ai/characters/author/character-name`
 - `https://character-tavern.com/character/author/card_name`
 
-### Bulk mirror
+### A whole search
 
-Set up your search on the site first, then copy the URL from the address bar and press **Mirror**.
-The whole query string is carried over — search terms, tags, excluded tags, sort order, lorebook/OC
-toggles, token ranges. If the URL names a page (`&page=3`), the mirror starts there.
+Set your search up on the site first, then copy the URL out of the address bar. The whole query
+string is carried over — search terms, tags, excluded tags, sort order, lorebook/OC toggles, token
+ranges. If the URL names a page (`&page=3`), it starts there.
 
 You get a plain grid — avatar, name, tagline, creator — with checkboxes. Tick what you want and press
 **Convert selected**. Star counts, downloads, ratings and comments are never read and never reach the
 output.
 
-You can also paste a **list of individual card URLs**, one per line, mixing both sites.
+### Several at once
 
-### Manual / file
+Paste card links one per line, mixing both sites freely. They all land in the same grid, already
+ticked. Search links cannot be mixed in — one search is hundreds of cards, so paste those on their
+own.
 
-For cards from anywhere else, or ones you already downloaded. Accepts V1/V2/V3 character card PNGs
-(read straight out of the PNG's `chara`/`ccv3` chunk) and card JSON.
+### Cards from anywhere else
+
+Casual Character Chat imports character card PNGs and JSON by itself, so there is nothing to convert
+first — take the file straight to the app.
 
 ### Getting cards into Casual Character Chat
 

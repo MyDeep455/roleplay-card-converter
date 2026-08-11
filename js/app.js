@@ -3,8 +3,8 @@
  * ========================================================================= */
 
 import { ADAPTERS, adapterForUrl } from './adapters.js';
-import { toCccCharacter, toCccBackup, normalizeSpecCard } from './convert.js';
-import { extractCardFromPng, blobToWebpDataUrl } from './media.js';
+import { toCccCharacter, toCccBackup } from './convert.js';
+import { blobToWebpDataUrl } from './media.js';
 import {
   checkProxy, setProxyEnabled, getProxyKind, needsProxy, isProxyBlocked, BLOCKED_MESSAGE,
 } from './transport.js';
@@ -109,17 +109,6 @@ async function shrinkThumb(dataUrl) {
   }
 }
 
-/* ---------------- tabs ---------------- */
-
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    $(`panel-${tab.dataset.tab}`).classList.add('active');
-  });
-});
-
 /* ---------------- proxy status ---------------- */
 
 // The pill is only ever about one feature - mirroring a Character Tavern
@@ -219,21 +208,54 @@ $('settings-save').addEventListener('click', async () => {
   $('settings-modal').classList.add('hidden');
 });
 
-/* ---------------- single card ---------------- */
+/* =========================================================================
+ * ONE INPUT
+ * -------------------------------------------------------------------------
+ * A card link and a search link were separate tabs, which made the person
+ * classify their own URL before pasting it - and get it wrong, because the
+ * difference is not obvious from looking at one. The adapters already know
+ * which is which, so the box takes anything and routes it here instead.
+ * ========================================================================= */
 
-$('single-go').addEventListener('click', convertSingle);
-$('single-url').addEventListener('keydown', e => { if (e.key === 'Enter') convertSingle(); });
+$('convert-btn').addEventListener('click', handleInput);
+$('url-input').addEventListener('keydown', e => {
+  // Enter submits, since one URL is the common case. Shift+Enter still opens a
+  // new line for pasting several.
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handleInput();
+  }
+});
 
-async function convertSingle() {
-  const status = $('single-status');
-  const raw = $('single-url').value.trim();
-  if (!raw) return setStatus(status, 'Paste a card URL first.', 'error');
+async function handleInput() {
+  const status = $('bulk-status');
+  const lines = $('url-input').value.split('\n').map(l => l.trim()).filter(Boolean);
 
-  const btn = $('single-go');
+  if (!lines.length) return setStatus(status, 'Paste a link first.', 'error');
+  if (lines.length > 1) return loadUrlList(lines, status);
+
+  const raw = lines[0];
+  let adapter, url;
+  try {
+    ({ adapter, url } = adapterForUrl(raw));
+  } catch (err) {
+    return setStatus(status, err.message || String(err), 'error');
+  }
+
+  if (adapter.isLibraryUrl(url)) return startMirror(pageFromUrl(raw));
+  return convertSingle(raw, adapter);
+}
+
+async function convertSingle(raw, adapter) {
+  const status = $('bulk-status');
+  const btn = $('convert-btn');
   btn.disabled = true;
   try {
-    const { adapter } = adapterForUrl(raw);
     setStatus(status, `Fetching from ${adapter.label}...`, 'busy');
+
+    // A single card replaces whatever a previous search left on screen, so the
+    // grid is not still offering picks that have nothing to do with the result.
+    clearBulkGrid();
 
     const card = await adapter.fetchCard(raw, {
       token: state.tokens[adapter.id] || null,
@@ -252,7 +274,7 @@ async function convertSingle() {
     setStatus(status,
       `Converted "${character.name}"${extras.length ? ' - ' + extras.join(', ') : ''}. See below.`,
       'ok');
-    $('single-url').value = '';
+    $('url-input').value = '';
   } catch (err) {
     setStatus(status, err.message || String(err), 'error');
   } finally {
@@ -274,17 +296,16 @@ function pageFromUrl(raw) {
   }
 }
 
-$('bulk-go').addEventListener('click', () => startMirror(pageFromUrl($('bulk-url').value)));
-$('bulk-url').addEventListener('keydown', e => {
-  if (e.key === 'Enter') startMirror(pageFromUrl($('bulk-url').value));
-});
-$('bulk-prev').addEventListener('click', () => startMirror(Math.max(1, state.bulk.page - 1)));
-$('bulk-next').addEventListener('click', () => startMirror(state.bulk.page + 1));
+// Paging re-runs the search that is already loaded rather than re-reading the
+// box, so editing the text without pressing Convert cannot send you to a page
+// of something else.
+$('bulk-prev').addEventListener('click', () => startMirror(Math.max(1, state.bulk.page - 1), state.bulk.url));
+$('bulk-next').addEventListener('click', () => startMirror(state.bulk.page + 1, state.bulk.url));
 
-async function startMirror(page) {
+async function startMirror(page, sourceUrl = null) {
   const status = $('bulk-status');
-  const raw = $('bulk-url').value.trim();
-  if (!raw) return setStatus(status, 'Paste a library URL first.', 'error');
+  const raw = (sourceUrl || $('url-input').value).trim();
+  if (!raw) return setStatus(status, 'Paste a link first.', 'error');
 
   try {
     const { adapter } = adapterForUrl(raw);
@@ -299,7 +320,7 @@ async function startMirror(page) {
         : `Mirroring page ${page} of ${adapter.label}...`,
       'busy'
     );
-    $('bulk-go').disabled = true;
+    $('convert-btn').disabled = true;
 
     const result = await adapter.listLibrary(raw, page, { token: state.tokens[adapter.id] || null });
 
@@ -321,22 +342,26 @@ async function startMirror(page) {
   } catch (err) {
     setStatus(status, err.message || String(err), 'error');
   } finally {
-    $('bulk-go').disabled = false;
+    $('convert-btn').disabled = false;
   }
 }
 
-// The pasted-URL path reuses the same grid, so a mixed list of platforms can
-// be reviewed and ticked exactly like a mirrored library page.
-$('bulk-urllist-go').addEventListener('click', () => {
-  const status = $('bulk-status');
-  const lines = $('bulk-urllist').value.split('\n').map(l => l.trim()).filter(Boolean);
-  if (!lines.length) return setStatus(status, 'Paste at least one card URL.', 'error');
-
+// Several links at once land in the same grid a search does, so a hand-collected
+// batch is reviewed and ticked exactly like a set of search results.
+function loadUrlList(lines, status) {
   const items = [];
   const bad = [];
+  const searches = [];
+
   lines.forEach(line => {
     try {
-      const { adapter } = adapterForUrl(line);
+      const { adapter, url } = adapterForUrl(line);
+
+      // A search among a list of cards has no sensible meaning - it would be
+      // one entry standing for hundreds - so it is called out rather than
+      // quietly converted into a single broken row.
+      if (adapter.isLibraryUrl(url)) return searches.push(line);
+
       items.push({
         key: line,
         name: decodeURIComponent(line.split('/').filter(Boolean).pop() || line).replace(/[-_]+/g, ' '),
@@ -350,15 +375,36 @@ $('bulk-urllist-go').addEventListener('click', () => {
     }
   });
 
+  if (!items.length) {
+    return setStatus(status,
+      searches.length
+        ? 'Those are search links. Paste one on its own to browse what it finds.'
+        : 'None of those are chub.ai or Character Tavern card links.',
+      'error');
+  }
+
   state.bulk = {
     adapter: null, url: '', page: 1, totalPages: 1,
     items, selected: new Set(items.map(i => i.key)), urlList: true,
   };
   renderBulkGrid();
+
+  const notes = [];
+  if (searches.length) notes.push(`${searches.length} search link(s) skipped - paste those one at a time`);
+  if (bad.length) notes.push(`${bad.length} unsupported and skipped`);
+
   setStatus(status,
-    `${items.length} URL(s) loaded and selected.${bad.length ? ` ${bad.length} unsupported and skipped.` : ''}`,
-    bad.length ? 'error' : 'ok');
-});
+    `${items.length} card link(s) loaded and selected.${notes.length ? ' ' + notes.join('; ') + '.' : ''}`,
+    notes.length ? 'error' : 'ok');
+}
+
+function clearBulkGrid() {
+  state.bulk = {
+    adapter: null, url: '', page: 1, totalPages: 1,
+    items: [], selected: new Set(), urlList: null,
+  };
+  renderBulkGrid();
+}
 
 function renderBulkGrid() {
   const grid = $('bulk-grid');
@@ -487,66 +533,6 @@ $('bulk-convert').addEventListener('click', async () => {
     `Converted ${done} card(s)${failed ? `, ${failed} failed` : ''}${cancelled}.` +
     (failures.length ? `\n\nFailures:\n- ${failures.slice(0, 12).join('\n- ')}` : ''),
     failed ? 'error' : 'ok');
-});
-
-/* ---------------- manual import ---------------- */
-
-$('manual-file').addEventListener('change', async e => {
-  const files = Array.from(e.target.files || []);
-  e.target.value = '';
-  if (!files.length) return;
-
-  const status = $('manual-status');
-  let ok = 0;
-  const errors = [];
-
-  for (const file of files) {
-    try {
-      setStatus(status, `Reading ${file.name}...`, 'busy');
-      let raw = null;
-      let avatar = '';
-
-      if (file.type === 'image/png' || /\.png$/i.test(file.name)) {
-        raw = extractCardFromPng(await file.arrayBuffer());
-        if (!raw) throw new Error('no character data embedded in this PNG');
-        avatar = await blobToWebpDataUrl(file);
-      } else {
-        raw = JSON.parse(await file.text());
-      }
-
-      const card = normalizeSpecCard(raw);
-      card.avatar = avatar;
-      card.sourcePlatform = 'File';
-      const character = toCccCharacter(card);
-      await storeCharacter(character, { platform: 'File', sourceUrl: file.name });
-      ok++;
-    } catch (err) {
-      errors.push(`${file.name}: ${err.message || err}`);
-    }
-  }
-
-  await renderResults();
-  setStatus(status,
-    `Imported ${ok} file(s).` + (errors.length ? `\nFailed:\n- ${errors.join('\n- ')}` : ''),
-    errors.length ? 'error' : 'ok');
-});
-
-$('manual-json-go').addEventListener('click', async () => {
-  const status = $('manual-status');
-  const text = $('manual-json').value.trim();
-  if (!text) return setStatus(status, 'Paste some card JSON first.', 'error');
-
-  try {
-    const card = normalizeSpecCard(JSON.parse(text));
-    card.sourcePlatform = 'Pasted JSON';
-    const character = toCccCharacter(card);
-    await storeCharacter(character, { platform: 'Pasted JSON', sourceUrl: '' });
-    await renderResults();
-    setStatus(status, `Converted "${character.name}".`, 'ok');
-    $('manual-json').value = '';
-  } catch (err) {
-    setStatus(status, `Could not read that JSON: ${err.message || err}`, 'error');
-  }
 });
 
 /* ---------------- results ---------------- */

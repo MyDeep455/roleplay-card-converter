@@ -364,8 +364,8 @@ export function adapterForUrl(rawUrl) {
   const found = ADAPTERS.find(a => a.matchUrl(u));
   if (!found) {
     throw new Error(
-      `${u.hostname} is not supported. This tool handles chub.ai and character-tavern.com. ` +
-      `For anything else, download the card and use the Manual tab.`
+      `${u.hostname} is not supported - this tool handles chub.ai and character-tavern.com. ` +
+      `Cards from elsewhere can be imported straight into Casual Character Chat instead.`
     );
   }
   return { adapter: found, url: u };
