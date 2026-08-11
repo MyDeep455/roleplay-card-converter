@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Roleplay Card Converter</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235b7fff'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='15' font-weight='bold' fill='white' text-anchor='middle'%3ER%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">RCC</span>
+    <div>
+      <h1>Roleplay Card Converter</h1>
+      <p class="sub">Character cards from chub.ai and Character Tavern &rarr; Casual Character Chat JSON</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <button id="proxy-status" class="pill pill-unknown" title="Click to re-check the local proxy">
+      <span class="dot"></span><span id="proxy-status-text">Checking proxy&hellip;</span>
+    </button>
+    <button id="settings-btn" class="btn btn-ghost">Settings</button>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="single" role="tab">Single card</button>
+  <button class="tab" data-tab="bulk" role="tab">Bulk mirror</button>
+  <button class="tab" data-tab="manual" role="tab">Manual / file</button>
+</nav>
+
+<main>
+
+  <!-- ============================ SINGLE ============================ -->
+  <section class="panel active" id="panel-single">
+    <h2>Convert one card</h2>
+    <p class="hint">Paste a card's page URL from chub.ai or character-tavern.com.</p>
+    <div class="row">
+      <input type="url" id="single-url" placeholder="https://chub.ai/characters/author/character-name" spellcheck="false" />
+      <button id="single-go" class="btn btn-primary">Convert</button>
+    </div>
+    <div id="single-status" class="status"></div>
+
+    <details class="support-table">
+      <summary>What each platform gives you</summary>
+      <table>
+        <thead><tr><th>Platform</th><th>Single card</th><th>Bulk mirror</th><th>Proxy needed?</th></tr></thead>
+        <tbody>
+          <tr><td>Chub.ai</td><td class="ok">Full card + gallery</td><td class="ok">Yes</td><td class="ok">Never</td></tr>
+          <tr><td>Character Tavern</td><td class="ok">Full card + lorebook</td><td class="ok">Yes</td><td class="warn">Bulk mirror only</td></tr>
+        </tbody>
+      </table>
+      <p class="fineprint">Character Tavern serves its card files with open CORS headers, so single cards work
+      without a proxy. Its search API does not, so mirroring a library is the one and only thing that
+      needs one &mdash; the pill in the header tells you whether it is available.</p>
+      <p class="fineprint">Cards from anywhere else: download the PNG or JSON and use the <strong>Manual / file</strong> tab.</p>
+    </details>
+  </section>
+
+  <!-- ============================= BULK ============================= -->
+  <section class="panel" id="panel-bulk">
+    <h2>Mirror a card library</h2>
+    <p class="hint">Paste a library, search or browse URL. The mirror shows name, tagline and avatar only &mdash; no votes,
+      downloads or comments are read or stored.</p>
+    <div class="row">
+      <input type="url" id="bulk-url" placeholder="https://chub.ai/characters?search=vampire" spellcheck="false" />
+      <button id="bulk-go" class="btn btn-primary">Mirror</button>
+    </div>
+
+    <details class="urllist">
+      <summary>Or paste a list of individual card URLs</summary>
+      <p class="hint">One URL per line, both platforms may be mixed. Handy for a batch you collected by hand.</p>
+      <textarea id="bulk-urllist" rows="5" spellcheck="false"
+        placeholder="https://chub.ai/characters/author/one&#10;https://character-tavern.com/character/author/two"></textarea>
+      <button id="bulk-urllist-go" class="btn">Load list</button>
+    </details>
+
+    <div id="bulk-status" class="status"></div>
+
+    <div id="bulk-toolbar" class="bulk-toolbar hidden">
+      <div class="bulk-toolbar-left">
+        <button id="bulk-select-all" class="btn btn-small">Select all</button>
+        <button id="bulk-select-none" class="btn btn-small">Clear selection</button>
+        <span id="bulk-count" class="chip">0 selected</span>
+      </div>
+      <div class="bulk-toolbar-right">
+        <button id="bulk-prev" class="btn btn-small">&larr; Prev</button>
+        <span id="bulk-page" class="chip">Page 1</span>
+        <button id="bulk-next" class="btn btn-small">Next &rarr;</button>
+        <button id="bulk-convert" class="btn btn-primary">Convert selected</button>
+      </div>
+    </div>
+
+    <div id="bulk-grid" class="bulk-grid"></div>
+
+    <div id="bulk-progress" class="progress hidden">
+      <div class="progress-bar"><div id="bulk-progress-fill"></div></div>
+      <div id="bulk-progress-text" class="progress-text"></div>
+      <button id="bulk-cancel" class="btn btn-small btn-danger">Cancel</button>
+    </div>
+  </section>
+
+  <!-- ============================ MANUAL ============================ -->
+  <section class="panel" id="panel-manual">
+    <h2>Manual import</h2>
+    <p class="hint">For cards you already downloaded, or platforms that need you to use their own export button.
+      Accepts V1/V2/V3 character card PNGs and JSON.</p>
+
+    <div class="manual-grid">
+      <div class="manual-box">
+        <h3>Card file</h3>
+        <p class="hint">PNG with embedded card data, or a card JSON file.</p>
+        <input type="file" id="manual-file" accept=".png,.json,image/png,application/json" multiple />
+      </div>
+      <div class="manual-box">
+        <h3>Paste card JSON</h3>
+        <textarea id="manual-json" rows="8" spellcheck="false" placeholder='{ "spec": "chara_card_v2", "data": { ... } }'></textarea>
+        <button id="manual-json-go" class="btn">Convert JSON</button>
+      </div>
+    </div>
+    <div id="manual-status" class="status"></div>
+  </section>
+
+</main>
+
+<!-- ============================ RESULTS ============================ -->
+<section class="results">
+  <div class="results-head">
+    <h2>Converted cards <span id="results-count" class="chip">0</span></h2>
+    <div class="results-actions">
+      <button id="download-all" class="btn">Download all as one file</button>
+      <button id="clear-all" class="btn btn-danger">Clear all</button>
+    </div>
+  </div>
+  <p class="hint">Stored in your browser and kept until you clear them. Import files into
+    Casual Character Chat with <strong>Import &rarr; JSON backup</strong>.</p>
+  <div id="results-list" class="results-list"></div>
+  <div id="results-empty" class="empty">Nothing converted yet.</div>
+</section>
+
+<!-- ============================ SETTINGS ============================ -->
+<div id="settings-modal" class="modal hidden">
+  <div class="modal-card">
+    <h2>Settings</h2>
+
+    <h3>Platform tokens</h3>
+    <p class="hint">Not required for public cards. Stored only in this tool's IndexedDB on your machine,
+      and sent to the matching platform and nowhere else.</p>
+    <div id="token-fields"></div>
+
+    <h3>Proxy</h3>
+    <p class="hint">Character Tavern's search API is the only thing this tool cannot fetch directly, so
+      the proxy affects exactly one feature: mirroring a library on that site. Everything else &mdash;
+      all of chub.ai, single cards, avatars, galleries &mdash; ignores it completely.</p>
+    <label class="check"><input type="checkbox" id="use-proxy" checked /> Use the proxy for Character Tavern library mirroring</label>
+    <div id="proxy-detail" class="hint"></div>
+
+    <div class="modal-actions">
+      <button id="settings-save" class="btn btn-primary">Save</button>
+      <button id="settings-close" class="btn btn-ghost">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ CONFIRM ============================ -->
+<div id="confirm-modal" class="modal hidden">
+  <div class="modal-card modal-small">
+    <h2 id="confirm-title">Are you sure?</h2>
+    <p id="confirm-text"></p>
+    <div class="modal-actions">
+      <button id="confirm-yes" class="btn btn-danger">Delete</button>
+      <button id="confirm-no" class="btn btn-ghost">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

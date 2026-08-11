@@ -1,0 +1,15 @@
+# One-click deploy of the proxy half of this tool.
+#
+# Only needed if you host the tool and want visitors to be able to mirror a
+# Character Tavern library. Everything else works without it - see README.
+#
+# Render reads this file when you point a new Blueprint at the repo. There is
+# nothing to build and nothing to install: proxy.js has no dependencies.
+services:
+  - type: web
+    name: roleplay-card-converter-proxy
+    runtime: node
+    plan: free
+    buildCommand: ""
+    startCommand: "node proxy.js"
+    healthCheckPath: /health

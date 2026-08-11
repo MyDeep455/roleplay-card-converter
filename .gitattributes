@@ -1,0 +1,19 @@
+# Store everything with LF in the repository.
+#
+# This matters for start.sh specifically: committed from Windows without this,
+# it would arrive on macOS and Linux with CRLF endings, where the shell reads
+# the trailing \r as part of the interpreter path and fails with a confusing
+# "bad interpreter" error. The one file meant for non-Windows users would be
+# the one file that did not work.
+* text=auto eol=lf
+
+# The Windows launchers are the exception - cmd and wscript want CRLF.
+*.vbs text eol=crlf
+*.cmd text eol=crlf
+
+# Leave binaries alone entirely.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary

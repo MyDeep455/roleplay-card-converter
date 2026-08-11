@@ -1,0 +1,14 @@
+{
+  "name": "roleplay-card-converter",
+  "version": "1.1.0",
+  "description": "Converts character cards from chub.ai and character-tavern.com into the Casual Character Chat JSON schema. Runs entirely in your browser.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node proxy.js",
+    "start:open": "node proxy.js --open",
+    "proxy": "node proxy.js"
+  }
+}

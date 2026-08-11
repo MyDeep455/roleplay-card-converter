@@ -1,0 +1,29 @@
+{
+  // Starts the converter's local server automatically whenever this folder is
+  // opened in VS Code, so the proxy is simply always there.
+  //
+  // First time only: VS Code asks whether to allow automatic tasks. If you
+  // missed the prompt, run "Tasks: Manage Automatic Tasks" from the Command
+  // Palette and choose "Allow Automatic Tasks".
+  //
+  // Harmless if the server is already running from another launcher - it
+  // detects the port is already its own and exits quietly.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Card Converter server",
+      "type": "shell",
+      "command": "node proxy.js",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "runOptions": { "runOn": "folderOpen" },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}
