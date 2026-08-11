@@ -137,8 +137,9 @@ const PROXY_STATES = {
   offline: {
     cls: 'pill-off',
     local: ['Proxy off', 'No local server. Everything works except mirroring a Character Tavern library.'],
-    hosted: ['Proxy unreachable', 'The cloud proxy did not answer. Everything works except mirroring a ' +
-      'Character Tavern library. Click the pill to retry.'],
+    hosted: ['Proxy unreachable', 'The cloud proxy did not answer - most often an ad blocker or privacy ' +
+      'extension blocking it, so allow this site if the console shows ERR_BLOCKED_BY_CLIENT. Everything ' +
+      'else works either way; only mirroring a Character Tavern library needs it. Click the pill to retry.'],
   },
   none: {
     cls: 'pill-off',

@@ -175,8 +175,16 @@ function unavailableMessage() {
       'configured. Download the tool and run it locally to use this feature.' + NO_PROXY_TAIL;
   }
   if (proxyKind === 'hosted') {
+    // An ad blocker is named first on purpose. A blocked request and a dead
+    // server look identical to the page - both surface as a bare "failed to
+    // fetch" - but the browser writes ERR_BLOCKED_BY_CLIENT to the console,
+    // and blockers do filter the hosts free platforms hand out. Saying only
+    // "could not be reached" sends people to check a server that is fine.
     return 'The cloud proxy could not be reached, so mirroring a Character Tavern library is ' +
-      'unavailable right now. Click the proxy pill in the header to try again.' + NO_PROXY_TAIL;
+      'unavailable. The usual cause is an ad blocker or privacy extension blocking the request - ' +
+      'check the browser console for ERR_BLOCKED_BY_CLIENT, and allow this site if you see it. ' +
+      'Otherwise the proxy may just be waking up; click the proxy pill in the header to retry.' +
+      NO_PROXY_TAIL;
   }
   return 'This needs the local server, which is not running. Start it with "npm start" in the tool ' +
     'folder, then click the proxy pill in the header to re-check.' + NO_PROXY_TAIL;
