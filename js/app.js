@@ -217,15 +217,10 @@ $('settings-save').addEventListener('click', async () => {
  * which is which, so the box takes anything and routes it here instead.
  * ========================================================================= */
 
+// Enter deliberately does nothing but start a new line. The box accepts a list,
+// so a key that submits it would cut one short mid-paste - and pressing Convert
+// is no harder than reaching for Enter.
 $('convert-btn').addEventListener('click', handleInput);
-$('url-input').addEventListener('keydown', e => {
-  // Enter submits, since one URL is the common case. Shift+Enter still opens a
-  // new line for pasting several.
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    handleInput();
-  }
-});
 
 async function handleInput() {
   const status = $('bulk-status');
@@ -346,6 +341,23 @@ async function startMirror(page, sourceUrl = null) {
   }
 }
 
+// Only the URL is known before a card is fetched, so the picker shows what can
+// be read from it. Both sites end their card paths with a slug, and chub hangs
+// a hex id off the end of its own - which is noise beside a real thumbnail, so
+// it goes.
+function nameFromCardUrl(line) {
+  const slug = decodeURIComponent(line.split('?')[0].split('/').filter(Boolean).pop() || line);
+  const words = slug.replace(/-[0-9a-f]{6,}$/i, '').replace(/[-_]+/g, ' ').trim();
+  return words ? words.replace(/\b[a-z]/g, c => c.toUpperCase()) : slug;
+}
+
+// Both sites use .../<author>/<slug>, so the segment before the slug is who
+// made it - the same thing the grid shows for a mirrored search.
+function creatorFromCardUrl(line) {
+  const parts = line.split('?')[0].split('/').filter(Boolean);
+  return parts.length >= 2 ? decodeURIComponent(parts[parts.length - 2]) : '';
+}
+
 // Several links at once land in the same grid a search does, so a hand-collected
 // batch is reviewed and ticked exactly like a set of search results.
 function loadUrlList(lines, status) {
@@ -364,11 +376,15 @@ function loadUrlList(lines, status) {
 
       items.push({
         key: line,
-        name: decodeURIComponent(line.split('/').filter(Boolean).pop() || line).replace(/[-_]+/g, ' '),
+        name: nameFromCardUrl(line),
         tagline: adapter.label,
-        avatarUrl: '',
+        // Both sites put the card image at a path derived from the card's own
+        // URL, so the picker can show real thumbnails here without fetching
+        // each card first. A URL that turns out wrong falls back to the same
+        // "no image" placeholder as before.
+        avatarUrl: adapter.avatarFromCardUrl?.(url) || '',
         cardUrl: line,
-        creator: '',
+        creator: creatorFromCardUrl(line),
       });
     } catch {
       bad.push(line);

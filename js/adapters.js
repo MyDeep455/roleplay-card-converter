@@ -63,6 +63,13 @@ const chub = {
     return parts[0] === 'characters' && parts.length < 3;      // chub.ai/characters?...
   },
 
+  // The avatar CDN mirrors the card path exactly, so a thumbnail for a pasted
+  // link costs nothing - no API call, just the URL the search would have given.
+  avatarFromCardUrl(u) {
+    const fullPath = this.fullPathFrom(u);
+    return fullPath.includes('/') ? `https://avatars.charhub.io/avatars/${fullPath}/avatar.webp` : '';
+  },
+
   async fetchCard(url, ctx = {}) {
     const u = new URL(url);
     const fullPath = this.fullPathFrom(u);
@@ -237,6 +244,13 @@ const characterTavern = {
   },
 
   avatarUrlFor(path) { return `${this.CARD_CDN}/${path}.png`; },
+
+  // Same idea as chub's: the card PNG lives at a path derived from the page
+  // URL, so it doubles as the thumbnail without asking the site anything.
+  avatarFromCardUrl(u) {
+    const path = this.pathFrom(u);
+    return path ? this.avatarUrlFor(path) : '';
+  },
 
   async fetchCard(url, ctx = {}) {
     const path = this.pathFrom(new URL(url));
