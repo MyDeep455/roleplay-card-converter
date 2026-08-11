@@ -24,6 +24,12 @@
 
 * { box-sizing: border-box; }
 
+/* Mobile Safari and Chrome inflate the text of any block they judge too narrow
+   for its font size, which on a phone in landscape hits a different set of
+   elements than in portrait - so the page would resize itself mid-rotation.
+   The sizes below are already chosen for a small screen; this keeps them. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
 body {
   margin: 0;
   padding: 0 0 60px;
@@ -478,8 +484,268 @@ textarea::-webkit-scrollbar-thumb:hover,
 .token-field label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 3px; }
 .token-field .hint { font-size: 0.78rem; margin-bottom: 5px; }
 
-@media (max-width: 620px) {
-  .topbar, .tabs, main, .results { padding-left: 14px; padding-right: 14px; }
-  .result-row { flex-wrap: wrap; }
-  .result-actions { width: 100%; }
+/* =========================================================================
+   PHONES
+   -------------------------------------------------------------------------
+   Everything above is the desktop layout and stays exactly as it is. This
+   section re-answers the three questions a phone asks differently: a row that
+   held four controls side by side now holds one, a pointer that could hit a
+   6px scrollbar is a fingertip, and text sized for a screen an arm's length
+   away is being read at a third of that distance.
+     720px rather than a device width. It is where the card grid stops fitting
+   four tiles across, and a phone turned sideways is already past it - the
+   layout that suits a 700px window suits a 700px phone.
+   ========================================================================= */
+
+@media (max-width: 720px) {
+
+  /* ---------------- top bar ---------------- */
+
+  /* Two deliberate full-width rows - who this is, then what it can do - rather
+     than one row that wrapped whichever piece happened to run out of room. */
+  .topbar { padding: 12px 16px; gap: 12px; }
+  .brand { flex: 1 1 100%; gap: 11px; }
+  .brand-mark { width: 36px; height: 36px; font-size: 0.75rem; }
+  .brand h1 { font-size: 1.12rem; }
+  .brand .sub { font-size: 0.8rem; line-height: 1.4; }
+
+  .topbar-actions { width: 100%; gap: 8px; }
+  /* The pill absorbs the leftover width so both controls come out the same
+     height, tall enough to hit, instead of a thumb-sized button sitting beside
+     a hairline one. */
+  #proxy-status { flex: 1 1 auto; justify-content: center; padding: 10px 14px; font-size: 0.84rem; }
+  #settings-btn { flex: 0 0 auto; padding: 10px 18px; }
+
+  /* ---------------- layout ---------------- */
+
+  main, .results { padding: 18px 16px; }
+  .results { margin-top: 4px; padding-top: 22px; }
+
+  /* ---------------- the paste box ---------------- */
+
+  /* One column. The button belongs under the box it acts on, at its full
+     width - wrapped, it came out as a stub in the bottom-left corner that read
+     as leftover rather than as the next step. */
+  .row #url-input { flex: 1 1 100%; height: 150px; min-height: 110px; }
+  .row .btn { align-self: stretch; width: 100%; padding: 13px 16px; font-size: 0.95rem; }
+
+  /* ---------------- form controls ---------------- */
+
+  /* 16px exactly, and not a fraction less. Below that iOS Safari zooms the
+     page in the moment a field takes focus, and it does not zoom back out -
+     the tool is left scrolled sideways with no way back short of pinching. */
+  input[type="url"], input[type="text"], input[type="password"], textarea { font-size: 16px; }
+  textarea { line-height: 1.5; }
+
+  /* ---------------- buttons and small text ---------------- */
+
+  .btn { padding: 11px 16px; }
+  .btn-small { padding: 8px 10px; font-size: 0.82rem; }
+
+  /* The 12px labels that read as quiet on a monitor read as unreadable here,
+     so every one of them goes up a step. */
+  .hint, .browse-links, .status, .bulk-source { font-size: 0.9rem; }
+  .bulk-hint { font-size: 0.92rem; }
+  .chip { font-size: 0.8rem; padding: 3px 10px; }
+
+  /* ---------------- card picker toolbar ---------------- */
+
+  /* Six things do not fit on one line, and left to wrap they landed in
+     whatever order the widths allowed - the button that converts could end up
+     anywhere. An explicit grid puts them in the order they are used: which
+     page am I on, what have I ticked, then the one action that acts on it.
+       display:contents takes the two wrapper divs out of the box model so
+     their buttons become items of this grid directly. The wrappers stay in the
+     markup because the desktop toolbar is built out of them. */
+  .bulk-toolbar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    margin: 16px 0 12px;
+    padding: 10px;
+  }
+  .bulk-toolbar-left, .bulk-toolbar-right { display: contents; }
+
+  #bulk-prev        { grid-row: 1; grid-column: 1; }
+  #bulk-page        { grid-row: 1; grid-column: 2; }
+  #bulk-next        { grid-row: 1; grid-column: 3; }
+  #bulk-select-all  { grid-row: 2; grid-column: 1; }
+  #bulk-count       { grid-row: 2; grid-column: 2; }
+  #bulk-select-none { grid-row: 2; grid-column: 3; }
+  #bulk-convert     { grid-row: 3; grid-column: 1 / -1; padding: 12px; font-size: 0.92rem; }
+
+  #bulk-page, #bulk-count { align-self: center; text-align: center; }
+
+  /* Labels wrap instead of pushing the toolbar wider than the screen, which is
+     what nowrap does to "Clear selection" on a 320px phone. Grid rows stretch,
+     so a label that takes two lines lifts the whole row rather than leaving one
+     button standing taller than its neighbours. */
+  .bulk-toolbar .btn { white-space: normal; }
+
+  /* ---------------- card grid ---------------- */
+
+  /* Two tiles to a row on every phone. The desktop rule falls to a single
+     column below about 370px of content width, and one column turns a page of
+     24 cards into a metre of scrolling with a portrait the size of a postcard
+     at every step. */
+  .bulk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+
+  /* The tile becomes a column so the credit can be pushed to the floor of it.
+     A row of tiles is as tall as the tallest, and with names running to two
+     lines on one card and one on the next, the credits ended up at four
+     different heights across a row - which reads as four tiles that failed to
+     line up rather than four tiles of different lengths. */
+  .bulk-card { display: flex; flex-direction: column; }
+  .bulk-card figure { flex: none; }
+  .bulk-card-body { flex: 1 1 auto; display: flex; flex-direction: column; padding: 8px 9px 10px; }
+  .bulk-card-name { font-size: 0.85rem; }
+  .bulk-card-creator { font-size: 0.74rem; margin-top: auto; padding-top: 5px; }
+
+  /* Clamped here, not scrolled. A blurb that scrolls inside its own tile is a
+     trap on a touch screen: the drag meant to move the page moves the blurb
+     instead, and at this tile size a finger starts on one most of the way down
+     the grid. Three lines is enough to tell two characters apart, which is all
+     the picker is for. */
+  .bulk-card-tag {
+    font-size: 0.78rem;
+    /* Two lines were reserved so that short blurbs still left the credits in
+       line with their neighbours'. The column above does that job properly
+       now, so the reservation is just a gap under a one-line blurb. */
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+
+  /* Bigger than a fingertip, and ringed so it stays visible when the avatar
+     behind it is pale - unchecked, it is otherwise a white box on white. */
+  .bulk-check {
+    width: 26px; height: 26px; top: 7px; left: 7px;
+    border-radius: 4px;
+    box-shadow: 0 0 0 2px rgba(8, 9, 12, 0.55);
+  }
+
+  /* ---------------- progress ---------------- */
+
+  /* Pinned to the bottom of the screen for as long as its real position is
+     below it. Converting a selection is started from a toolbar above the grid
+     and takes a while, and the bar reporting it sits under the grid - on a
+     phone that is several screens down, so the one thing worth watching was
+     the one thing off screen. Sticky costs nothing when it is hidden and
+     releases itself once scrolled to. */
+  .progress {
+    position: sticky; bottom: 8px; z-index: 5;
+    gap: 10px; padding: 12px;
+    box-shadow: 0 4px 18px rgba(8, 9, 12, 0.55);
+  }
+  /* The bar takes a line to itself, and the count and the way out share the
+     one below. The count is given a zero basis so it wraps its own text rather
+     than claiming the width its longest card name wants and pushing Cancel
+     down to a third line. */
+  .progress-bar { flex: 1 1 100%; }
+  .progress-text { flex: 1 1 0; min-width: 0; font-size: 0.86rem; }
+  #bulk-cancel { flex: 0 0 auto; }
+
+  /* ---------------- notices ---------------- */
+
+  .region-info-wrap { margin-top: 20px; }
+
+  .notice { padding: 14px 44px 14px 14px; }
+  .notice h3 { font-size: 0.98rem; }
+  .notice h4 { font-size: 0.9rem; margin-top: 14px; }
+  .notice p, .notice ol { font-size: 0.9rem; }
+  .notice ol { padding-left: 22px; }
+  /* Each step runs to three or four lines in a column this narrow, so without
+     a gap between them the list reads as one paragraph of instructions. */
+  .notice ol li { margin-bottom: 9px; }
+  .notice .btn-small { margin: 2px; }
+
+  .notice-close {
+    top: 4px; right: 4px;
+    display: grid; place-items: center;
+    width: 36px; height: 36px; padding: 0;
+    font-size: 1.5rem;
+  }
+
+  /* ---------------- results ---------------- */
+
+  /* The two actions take a line of their own here, so the heading block needs
+     a gap under it - without one the buttons sat directly against the sentence
+     below and read as belonging to it. */
+  .results-head { margin-bottom: 14px; }
+  .results-head h2 { flex: 1 1 100%; }
+  .results-actions { width: 100%; gap: 8px; }
+  .results-actions .btn { flex: 1 1 auto; white-space: normal; }
+
+  .result-row { flex-wrap: wrap; gap: 11px; padding: 11px; }
+  .result-thumb { width: 52px; height: 68px; }
+  .result-info { flex: 1 1 0; min-width: 0; }
+  .result-name { font-size: 0.95rem; }
+
+  /* The meta line ends in the card's full source address, which wraps to four
+     lines of grey 12px if it is allowed to. Two is enough to recognise where a
+     card came from. */
+  .result-meta {
+    font-size: 0.8rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .badge { font-size: 0.74rem; }
+
+  /* Two equal halves on their own line: both are one-tap actions on the card
+     above them, and one of the two deletes it. */
+  .result-actions { width: 100%; gap: 8px; }
+  .result-actions .btn { flex: 1 1 0; }
+
+  .empty { padding: 26px 18px; }
+
+  /* ---------------- modals ---------------- */
+
+  .modal { padding: 12px; }
+  .modal-card { padding: 18px 16px; }
+  .modal-actions { gap: 10px; margin-top: 18px; }
+  .modal-actions .btn { flex: 1 1 0; padding: 12px; }
+
+  /* vh on a phone means the viewport with the address bar hidden, so a card
+     capped at 88vh overflows the screen for as long as the bar is showing.
+     dvh is that measurement taken live. */
+  @supports (height: 100dvh) {
+    .modal-card { max-height: 85dvh; }
+  }
+
+  .token-field label { font-size: 0.9rem; }
+  .token-field .hint { font-size: 0.85rem; }
+}
+
+/* Narrow phones - 320 to 360px. Only the padding and the widest labels need
+   the extra room; everything above already fits. */
+@media (max-width: 380px) {
+  .topbar, main, .results { padding-left: 12px; padding-right: 12px; }
+  .brand .sub { font-size: 0.76rem; }
+  .btn { padding: 10px 13px; }
+  .btn-small { padding: 8px; font-size: 0.8rem; }
+  .bulk-grid { gap: 8px; }
+  .notice { padding-left: 12px; }
+}
+
+/* A touch screen has no way to stop hovering: whatever was tapped last keeps
+   its :hover state until something else is tapped. On a tile that means the
+   lifted, brightly bordered look - which here says "this one is picked" -
+   stays on a card the finger has already left, competing with the tick that
+   actually says it. Hover styling is worth nothing without a pointer, so on
+   these devices it is simply switched off. */
+@media (hover: none) {
+  .bulk-card:hover { transform: none; border-color: var(--border); }
+  .bulk-card.selected:hover { border-color: var(--accent); }
+
+  .btn:hover:not(:disabled) { background: var(--bg-input); border-color: var(--border-strong); }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-strong); border-color: var(--accent-strong); }
+  .btn-ghost:hover:not(:disabled) { background: none; border-color: var(--border); }
+  .btn-danger:hover:not(:disabled) { background: none; border-color: rgba(227, 115, 95, 0.5); }
 }
