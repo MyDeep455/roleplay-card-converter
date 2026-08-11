@@ -29,11 +29,14 @@
 
   <section class="panel">
     <h2>Convert cards</h2>
-    <p class="hint">Paste one or multiple character card URLs from chub.ai or Character Tavern here &rarr; click "Convert".</p>
+    <p class="hint">Paste any character card URLs or library URLs from chub.ai or Character Tavern here &rarr; click "Convert".</p>
 
     <div class="row">
-      <textarea id="url-input" rows="2" spellcheck="false"
-        placeholder="e.g. https://chub.ai/characters/Anonymous/alice-the-bully-40f0cc011ae1"><br />or https://character-tavern.com/character/makima/Alice%20the%20bully<br />or https://chub.ai/?segment=trending&page=1<br />or https://character-tavern.com/search/cards</textarea>
+      <!-- Line breaks inside an attribute have to be &#10; - a <br /> would show
+           up as those five literal characters. & must be &amp; for the same
+           reason: it starts an entity wherever it appears. -->
+      <textarea id="url-input" rows="5" spellcheck="false"
+        placeholder="e.g. https://chub.ai/characters/Anonymous/alice-the-bully-40f0cc011ae1&#10;or https://character-tavern.com/character/makima/Alice%20the%20bully&#10;or https://chub.ai/?segment=trending&amp;page=1&#10;or https://character-tavern.com/search/cards"></textarea>
       <button id="convert-btn" class="btn btn-primary">Convert</button>
     </div>
 
@@ -45,6 +48,8 @@
     </p>
     <p class="hint">You can also enter whole search URLs like these for example:<br /><br />https://chub.ai/?segment=trending&page=1<br />https://character-tavern.com/search/cards<br /><br />Paste them above and click convert &rarr; Now select all characters you want for bulk download.</p>
     <div id="bulk-status" class="status"></div>
+
+    <p id="bulk-source" class="bulk-source hidden"></p>
 
     <div id="bulk-toolbar" class="bulk-toolbar hidden">
       <div class="bulk-toolbar-left">

@@ -439,6 +439,11 @@ let discoverSuperseded = false;
 function renderSkeletons(n) {
   const grid = $('bulk-grid');
   grid.innerHTML = '';
+
+  // Nothing has arrived yet, so naming a source would be describing tiles that
+  // are still placeholders.
+  $('bulk-source').classList.add('hidden');
+  $('bulk-toolbar').classList.add('hidden');
   for (let i = 0; i < n; i++) {
     const el = document.createElement('div');
     el.className = 'bulk-card skeleton';
@@ -490,10 +495,30 @@ function clearBulkGrid() {
   renderBulkGrid();
 }
 
+// What is on screen came from somewhere - a search, a suggestion, or a paste -
+// and after a few conversions it is easy to lose track of which. This names it,
+// and links back so the same page can be reopened on the site itself.
+function renderBulkSource() {
+  const el = $('bulk-source');
+  const { url, urlList, items } = state.bulk;
+
+  if (!items.length || (!url && !urlList)) {
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+
+  el.classList.remove('hidden');
+  el.innerHTML = urlList
+    ? `Showing <strong>${items.length}</strong> pasted link(s)`
+    : `Showing <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
+}
+
 function renderBulkGrid() {
   const grid = $('bulk-grid');
   const toolbar = $('bulk-toolbar');
   grid.innerHTML = '';
+  renderBulkSource();
 
   if (!state.bulk.items.length) {
     toolbar.classList.add('hidden');

@@ -187,6 +187,19 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
 /* Marks them as leaving the tool, so nobody expects an in-page browser. */
 .browse-links a::after { content: " \2197"; font-size: 0.85em; }
 
+/* ---------------- current source ---------------- */
+
+.bulk-source {
+  margin: 14px 0 0;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  /* A search URL carries every filter and can run long, so it wraps anywhere
+     rather than pushing the layout sideways. */
+  overflow-wrap: anywhere;
+}
+.bulk-source a { color: var(--accent); text-decoration: none; }
+.bulk-source a:hover { text-decoration: underline; }
+
 /* ---------------- card picker grid ---------------- */
 
 .bulk-toolbar {
