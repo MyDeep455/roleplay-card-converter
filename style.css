@@ -298,6 +298,30 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
 .progress-bar > div { height: 100%; width: 0%; background: var(--accent); transition: width 0.2s; }
 .progress-text { font-size: 0.83rem; color: var(--text-dim); flex: 1 1 200px; }
 
+/* ---------------- region notice ---------------- */
+
+.notice {
+  position: relative;
+  margin: 14px 0 0;
+  padding: 14px 40px 14px 16px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius);
+}
+.notice h3 { margin: 0 0 6px; font-size: 0.92rem; }
+.notice p { margin: 0 0 8px; color: var(--text-dim); font-size: 0.85rem; }
+.notice p:last-child { margin-bottom: 0; }
+
+.notice-close {
+  position: absolute; top: 8px; right: 10px;
+  background: none; border: none;
+  color: var(--text-faint); font-size: 1.2rem; line-height: 1;
+  cursor: pointer; padding: 2px 6px; border-radius: var(--radius-sm);
+  font-family: inherit;
+}
+.notice-close:hover { color: var(--text); background: var(--bg-input); }
+
 /* ---------------- results ---------------- */
 
 .results-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }

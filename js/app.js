@@ -723,6 +723,22 @@ async function renderResults() {
   });
 }
 
+/* ---------------- region notice ---------------- */
+
+// Kept behind a button rather than shown on arrival: it only matters to people
+// in the affected regions, and a standing warning about content nobody has
+// asked for yet would be noise for everyone else.
+function toggleRegionInfo(show) {
+  const panel = $('region-info');
+  const open = show ?? panel.classList.contains('hidden');
+  panel.classList.toggle('hidden', !open);
+  $('region-info-btn').setAttribute('aria-expanded', String(open));
+  if (open) panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+$('region-info-btn').addEventListener('click', () => toggleRegionInfo());
+$('region-info-close').addEventListener('click', () => toggleRegionInfo(false));
+
 $('download-all').addEventListener('click', async () => {
   const rows = await listCardsLight();
   if (!rows.length) return;

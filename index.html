@@ -81,10 +81,25 @@
   <div class="results-head">
     <h2>Converted cards <span id="results-count" class="chip">0</span></h2>
     <div class="results-actions">
+      <button id="region-info-btn" class="btn btn-small" aria-expanded="false"
+        aria-controls="region-info">Missing characters?</button>
       <button id="download-all" class="btn">Download all as one file</button>
       <button id="clear-all" class="btn btn-danger">Clear all</button>
     </div>
   </div>
+
+  <div id="region-info" class="notice hidden" role="note">
+    <button id="region-info-close" class="notice-close" aria-label="Close">&times;</button>
+    <h3>Some cards may be blocked where you are</h3>
+    <p>Both sites decide what to serve based on the country you connect from. Depending on where that
+      is, adult or age-restricted cards may be filtered out of searches, and in some countries the
+      sites refuse the request altogether.</p>
+    <p>When that happens the card or search simply fails, and the error says nothing useful &mdash;
+      because the refusal comes from the site, not from this tool. If cards you can see in your browser
+      will not convert here, or searches come back short, that is usually the reason. A VPN is the
+      usual way around it; nothing in this tool needs changing.</p>
+  </div>
+
   <p class="hint">Stored in your browser and kept until you clear them. Import files into
     Casual Character Chat with <strong>Import &rarr; JSON backup</strong>.</p>
   <div id="results-list" class="results-list"></div>
