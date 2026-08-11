@@ -179,6 +179,14 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
   color: var(--text-dim); font-size: 0.78rem;
 }
 
+/* ---------------- browse links ---------------- */
+
+.browse-links { margin: 12px 0 0; color: var(--text-dim); font-size: 0.85rem; }
+.browse-links a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+.browse-links a:hover { border-bottom-color: var(--accent); }
+/* Marks them as leaving the tool, so nobody expects an in-page browser. */
+.browse-links a::after { content: " \2197"; font-size: 0.85em; }
+
 /* ---------------- card picker grid ---------------- */
 
 .bulk-toolbar {
@@ -222,6 +230,33 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
   min-height: 2.2em;
 }
 .bulk-card-creator { font-size: 0.72rem; color: var(--text-faint); margin: 4px 0 0; }
+
+/* ---------------- loading placeholders ---------------- */
+
+/* Same tiles, same grid, no content - so the wait shows the shape of what is
+   arriving instead of a spinner that could mean anything. */
+.bulk-card.skeleton { cursor: default; pointer-events: none; }
+.bulk-card.skeleton:hover { border-color: var(--border); transform: none; }
+
+.bulk-card.skeleton figure,
+.bulk-card.skeleton .bulk-card-body p {
+  background: linear-gradient(90deg, var(--bg-input) 25%, #232734 50%, var(--bg-input) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.3s ease-in-out infinite;
+}
+
+.bulk-card.skeleton .bulk-card-body p { height: 10px; border-radius: 4px; margin: 0 0 7px; }
+.bulk-card.skeleton .bulk-card-body p.short { width: 60%; margin-bottom: 0; }
+
+@keyframes skeleton-sweep {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bulk-card.skeleton figure,
+  .bulk-card.skeleton .bulk-card-body p { animation: none; }
+}
 
 .bulk-check {
   position: absolute; top: 8px; left: 8px;

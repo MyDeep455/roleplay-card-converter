@@ -227,6 +227,10 @@ async function handleInput() {
   const lines = $('url-input').value.split('\n').map(l => l.trim()).filter(Boolean);
 
   if (!lines.length) return setStatus(status, 'Paste a link first.', 'error');
+
+  // From here on this is the person's own request, so a slow suggestion load
+  // that finishes later must not overwrite it.
+  discoverSuperseded = true;
   if (lines.length > 1) return loadUrlList(lines, status);
 
   const raw = lines[0];
@@ -412,6 +416,70 @@ function loadUrlList(lines, status) {
   setStatus(status,
     `${items.length} card link(s) loaded and selected.${notes.length ? ' ' + notes.join('; ') + '.' : ''}`,
     notes.length ? 'error' : 'ok');
+}
+
+/* =========================================================================
+ * OPENING SUGGESTIONS
+ * -------------------------------------------------------------------------
+ * An empty page with one text box does not say what the tool is for, and gives
+ * someone nothing to try without leaving to find a link first. So a page of
+ * chub's trending cards loads on its own - chub needs no proxy, so this works
+ * even when the proxy is asleep, blocked or absent.
+ *
+ * Nothing is preselected and nothing is fetched beyond the listing itself:
+ * these are suggestions, not work already started on someone's behalf.
+ * ========================================================================= */
+
+const DISCOVER_URL = 'https://chub.ai/characters?sort=trending';
+
+// The moment someone pastes their own link, whatever this was loading stops
+// mattering - a late reply must not replace what they actually asked for.
+let discoverSuperseded = false;
+
+function renderSkeletons(n) {
+  const grid = $('bulk-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement('div');
+    el.className = 'bulk-card skeleton';
+    el.innerHTML = '<figure></figure><div class="bulk-card-body"><p></p><p class="short"></p></div>';
+    grid.appendChild(el);
+  }
+}
+
+async function loadDiscover() {
+  const status = $('bulk-status');
+
+  // Skeleton tiles rather than a line of text: the shape of what is coming is
+  // the part worth showing, so the wait reads as a collection loading rather
+  // than as an empty page that might stay empty.
+  renderSkeletons(12);
+  setStatus(status, 'Loading trending characters from chub.ai...', 'busy');
+
+  try {
+    const { adapter } = adapterForUrl(DISCOVER_URL);
+    const result = await adapter.listLibrary(DISCOVER_URL, 1, {});
+    if (discoverSuperseded) return;
+
+    const items = result.items || [];
+    if (!items.length) throw new Error('no cards returned');
+
+    state.bulk = {
+      adapter, url: DISCOVER_URL, page: 1,
+      totalPages: result.totalPages || 1,
+      items, selected: new Set(), urlList: null,
+    };
+    renderBulkGrid();
+    setStatus(status,
+      `Trending on chub.ai right now - tick any you want, or paste your own link above.`, 'ok');
+  } catch {
+    if (discoverSuperseded) return;
+
+    // Suggestions are a convenience, so a failure here is not the user's
+    // problem to solve and must not greet them as an error.
+    clearBulkGrid();
+    setStatus(status, '', '');
+  }
 }
 
 function clearBulkGrid() {
@@ -652,5 +720,10 @@ $('clear-all').addEventListener('click', async () => {
   state.useProxy = (await getSetting('useProxy', true)) !== false;
   setProxyEnabled(state.useProxy);
   await renderResults();
+
+  // Not awaited: the suggestions go direct to chub and have nothing to do with
+  // the proxy, so neither should wait on the other. The proxy check in
+  // particular can sit for a minute against a sleeping service.
+  loadDiscover();
   await refreshProxyStatus();
 })();
