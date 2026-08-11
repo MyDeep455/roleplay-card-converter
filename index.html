@@ -29,23 +29,22 @@
 
   <section class="panel">
     <h2>Convert cards</h2>
-    <p class="hint">Paste any character card URLs or library URLs from chub.ai or Character Tavern here &rarr; click "Convert".</p>
+    <p class="browse-links">
+      Browse
+      <a href="https://chub.ai/" target="_blank" rel="noopener noreferrer">chub.ai</a> or
+      <a href="https://character-tavern.com/" target="_blank" rel="noopener noreferrer">Character Tavern</a>
+      &rarr; copy the desired URL out of the adress bar on top of your screen &rarr; paste it below &rarr; click "Convert".
+    </p>
 
     <div class="row">
       <!-- Line breaks inside an attribute have to be &#10; - a <br /> would show
            up as those five literal characters. & must be &amp; for the same
            reason: it starts an entity wherever it appears. -->
       <textarea id="url-input" rows="5" spellcheck="false"
-        placeholder="paste character card URLs:&#10;e.g. https://chub.ai/characters/Anonymous/alice-the-bully-40f0cc011ae1&#10;e.g. https://character-tavern.com/character/makima/Alice%20the%20bully&#10;&#10;or a whole search URL:&#10;e.g. https://character-tavern.com/search/cards&#10;e.g. https://chub.ai/?segment=trending&page=1"></textarea>
+        placeholder="paste character card URLs:&#10;e.g. https://chub.ai/characters/Anonymous/alice-the-bully-40f0cc011ae1&#10;e.g. https://character-tavern.com/character/makima/Alice%20the%20bully&#10;&#10;or a whole search URL:&#10;e.g. https://chub.ai/?segment=trending&page=1"></textarea>
       <button id="convert-btn" class="btn btn-primary">Convert</button>
     </div>
 
-    <p class="browse-links">
-      Browse
-      <a href="https://chub.ai/" target="_blank" rel="noopener noreferrer">chub.ai</a> or
-      <a href="https://character-tavern.com/" target="_blank" rel="noopener noreferrer">Character Tavern</a>
-      &rarr; copy the URL of a character page or a whole search page out of the adress on top of your screen&rarr;paste it below&rarr; click "Convert".
-    </p>
     <div id="bulk-status" class="status"></div>
 
     <p id="bulk-source" class="bulk-source hidden"></p>
