@@ -200,6 +200,15 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
 .bulk-source a { color: var(--accent); text-decoration: none; }
 .bulk-source a:hover { text-decoration: underline; }
 
+/* Sits between the source line and the toolbar it refers to, so the step being
+   asked for is read before the buttons that carry it out. */
+.bulk-hint {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
 /* ---------------- card picker grid ---------------- */
 
 .bulk-toolbar {

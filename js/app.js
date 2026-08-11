@@ -440,9 +440,10 @@ function renderSkeletons(n) {
   const grid = $('bulk-grid');
   grid.innerHTML = '';
 
-  // Nothing has arrived yet, so naming a source would be describing tiles that
-  // are still placeholders.
+  // Nothing has arrived yet, so naming a source - or asking for a choice
+  // between tiles that are still placeholders - would be premature.
   $('bulk-source').classList.add('hidden');
+  $('bulk-hint').classList.add('hidden');
   $('bulk-toolbar').classList.add('hidden');
   for (let i = 0; i < n; i++) {
     const el = document.createElement('div');
@@ -502,11 +503,14 @@ function clearBulkGrid() {
 // and links back so the same page can be reopened on the site itself.
 function renderBulkSource() {
   const el = $('bulk-source');
+  const hint = $('bulk-hint');
   const { url, urlList, items } = state.bulk;
 
   if (!items.length || (!url && !urlList)) {
     el.classList.add('hidden');
     el.innerHTML = '';
+    hint.classList.add('hidden');
+    hint.innerHTML = '';
     return;
   }
 
@@ -514,6 +518,14 @@ function renderBulkSource() {
   el.innerHTML = urlList
     ? `Currently showing <strong>${items.length}</strong> pasted link(s)`
     : `Currently showing this URL: <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
+
+  // A page of search results is a shelf, not an order - nothing below it is
+  // converted until it is picked. Pasted links arrive already ticked, so the
+  // step being asked for is the opposite one.
+  hint.classList.remove('hidden');
+  hint.innerHTML = urlList
+    ? 'All selected &rarr; untick any you don\'t want &rarr; click "Convert selected"'
+    : 'Select the characters you want &rarr; click "Convert selected" to convert and download them';
 }
 
 function renderBulkGrid() {
