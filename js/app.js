@@ -475,8 +475,10 @@ async function loadDiscover() {
       items, selected: new Set(), urlList: null,
     };
     renderBulkGrid();
-    setStatus(status,
-      `Trending on chub.ai right now - tick any you want, or paste your own link above.`, 'ok');
+
+    // The source line under the box already names what these are and links to
+    // it, so a second sentence saying the same thing is just noise.
+    setStatus(status, '', '');
   } catch {
     if (discoverSuperseded) return;
 
@@ -510,8 +512,8 @@ function renderBulkSource() {
 
   el.classList.remove('hidden');
   el.innerHTML = urlList
-    ? `Showing <strong>${items.length}</strong> pasted link(s)`
-    : `Showing <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
+    ? `Currently showing <strong>${items.length}</strong> pasted link(s)`
+    : `Currently showing this URL: <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
 }
 
 function renderBulkGrid() {
