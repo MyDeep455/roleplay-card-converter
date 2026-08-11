@@ -321,6 +321,12 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
 .notice p { margin: 0 0 8px; color: var(--text-dim); font-size: 0.85rem; }
 .notice p:last-child { margin-bottom: 0; }
 
+/* Matches the browse links above - without this it falls through to the
+   browser's default blue, which is the one colour on the page nothing else
+   uses. */
+.notice a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+.notice a:hover { border-bottom-color: var(--accent); }
+
 .notice-close {
   position: absolute; top: 8px; right: 10px;
   background: none; border: none;
