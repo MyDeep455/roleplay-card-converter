@@ -103,7 +103,21 @@ code {
 
 /* ---------------- layout ---------------- */
 
-main, .results { max-width: 1100px; margin: 0 auto; padding: 24px; }
+/* Wide enough for seven cards to a row rather than five.
+ *
+ * The card grid is what this width is for, and the arithmetic is exact: the
+ * grid fits floor((width - 48px of padding + 14px gap) / (178px tile + 14px
+ * gap)) columns, so 1100px gave five and anything from 1378px gives seven.
+ * 1500px is chosen from that range because it lands on seven with 195px tiles,
+ * near-identical to the 199px they were before - the row gains two cards
+ * without the cards themselves shrinking. It also leaves room before the next
+ * step: eight columns only start at 1536px.
+ *
+ * Both selectors move together so the results list below stays flush with the
+ * grid above it. Narrower screens are unaffected - the viewport is the limit
+ * long before this is - and the one block of real prose, .notice, keeps its own
+ * 760px cap so it never stretches to a hard-to-read line length. */
+main, .results { max-width: 1500px; margin: 0 auto; padding: 24px; }
 .results { border-top: 1px solid var(--border); margin-top: 8px; }
 
 .row { display: flex; gap: 10px; flex-wrap: wrap; }
