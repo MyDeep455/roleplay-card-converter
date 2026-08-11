@@ -139,8 +139,8 @@ const PROXY_STATES = {
   offline: {
     cls: 'pill-off',
     local: ['Proxy off', 'No local server. Everything works except mirroring a Character Tavern library.'],
-    hosted: ['Proxy unreachable', 'The cloud proxy did not answer. It may be waking up - click the pill ' +
-      'to retry. Everything else works either way; only mirroring a Character Tavern library needs it.'],
+    hosted: ['Proxy unreachable', 'The proxy did not answer. It may be waking up - click the pill to ' +
+      'retry. An AD BLOCKER is the other likely cause; disable it for this site.'],
   },
   // Its own state rather than a flavour of offline: the cause is on this
   // machine, retrying cannot fix it, and the fix is one the person can act on.

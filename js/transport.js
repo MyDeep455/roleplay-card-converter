@@ -191,15 +191,18 @@ export async function checkProxy(onSettled) {
   return 'waking';
 }
 
-// Named extensions rather than "an ad blocker", because someone running uBlock
-// Origin does not necessarily think of it as one, and the fix is per-extension.
+// Kept short deliberately. Nobody reads a paragraph to find out why a button
+// did not work, so these say the cause and the one action, and stop. The
+// blocked variant can be blunter than the general one because the instant
+// failure has already established it.
 export const BLOCKED_MESSAGE =
-  'A browser extension blocked the connection to the proxy, so mirroring a Character Tavern library ' +
-  'cannot work until it is allowed. This is almost always an ad blocker - uBlock Origin, Adblock ' +
-  'Plus, Ghostery, Privacy Badger or similar - because blocking lists cover the shared domains free ' +
-  'hosting platforms use. Click your blocker\'s toolbar icon and allow this site, then click the ' +
-  'proxy pill to retry. (Opening the page in a private window, where extensions are usually off, ' +
-  'confirms it in seconds.)';
+  'An AD BLOCKER or privacy extension is blocking the proxy - just disable it for this site, ' +
+  'then click the proxy pill in the header to retry.';
+
+const UNREACHABLE_MESSAGE =
+  'The proxy server could not be reached for this search. If you\'re using an AD BLOCKER or privacy ' +
+  'extension, it\'s most certainly the cause - just disable it for this site. Otherwise the proxy ' +
+  'may just be waking up; click the proxy pill in the header to retry.';
 
 const NO_PROXY_TAIL =
   ' (Only Character Tavern library mirroring needs a proxy - single cards, ' +
@@ -214,16 +217,11 @@ function unavailableMessage() {
     return 'Mirroring a Character Tavern library needs a proxy, and this copy of the tool has none ' +
       'configured. Download the tool and run it locally to use this feature.' + NO_PROXY_TAIL;
   }
-  if (proxyBlocked) {
-    return BLOCKED_MESSAGE + NO_PROXY_TAIL;
-  }
-
-  if (proxyKind === 'hosted') {
-    return 'The cloud proxy did not answer, so mirroring a Character Tavern library is unavailable ' +
-      'right now. It may still be waking up - click the proxy pill in the header to retry. If that ' +
-      'keeps failing, an ad blocker may be the cause; see the console for ERR_BLOCKED_BY_CLIENT.' +
-      NO_PROXY_TAIL;
-  }
+  // No trailing "only this feature needs it" caveat on these two: they are the
+  // messages people actually hit mid-task, and the extra sentence is the one
+  // that stops the useful part being read.
+  if (proxyBlocked) return BLOCKED_MESSAGE;
+  if (proxyKind === 'hosted') return UNREACHABLE_MESSAGE;
   return 'This needs the local server, which is not running. Start it with "npm start" in the tool ' +
     'folder, then click the proxy pill in the header to re-check.' + NO_PROXY_TAIL;
 }
