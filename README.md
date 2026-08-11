@@ -117,6 +117,9 @@ combining the launchers above is safe.
 What you **cannot** do is open `index.html` by double-clicking it — `file://` pages get no IndexedDB
 and no ES modules. It has to be served over `http://`, which is what `npm start` is for.
 
+A local copy prefers a local server and falls back to the deployed one from `js/config.js` if none is
+running, so working on the tool locally does not mean losing library mirroring.
+
 ---
 
 ## Hosting it for other people

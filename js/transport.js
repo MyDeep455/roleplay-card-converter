@@ -21,16 +21,22 @@ import { HOSTED_PROXY } from './config.js';
 //
 //   served by proxy.js itself  -> the proxy is this very origin, whatever port
 //                                 it happens to be on
-//   opened from localhost      -> Live Server or similar, so a separate origin:
-//                                 fall back to the default local port
+//   opened from localhost      -> Live Server or similar, so a separate origin.
+//                                 Try the default local port, then fall back to
+//                                 the deployed proxy if nothing is running.
 //   opened from a real domain  -> someone's hosted copy. There is no local
 //                                 server to find, so use the deployed one from
 //                                 config.js, or none at all if it is unset.
 //
-// A hosted page deliberately does not go looking for a local proxy. Browsers
-// gate requests from a public page into your own network behind a permission
-// prompt, so it would be a confusing dialog in exchange for a case that barely
-// happens - someone running the server locally would open it locally.
+// The localhost fallback exists because otherwise opening the folder to work on
+// it reports "proxy off" while a perfectly good deployed one sits unused. It
+// costs one refused request in the console when no local server is running,
+// which is cosmetic; being unusable locally is not.
+//
+// The reverse - a hosted page hunting for a local proxy - is deliberately not
+// done. Browsers gate requests from a public page into your own network behind
+// a permission prompt, so it would trade a scary dialog for a case that barely
+// happens: someone running the server locally would open it locally.
 const LOCAL_PROXY = 'http://127.0.0.1:8787';
 let proxyBase = LOCAL_PROXY;
 
@@ -75,16 +81,20 @@ function isLocalHostname(h) {
 }
 
 // proxy.js marks the page it serves, so the same-origin case is a fact rather
-// than a guess. That matters because a probe that misses logs a console error
-// no try/catch can suppress, so this settles on exactly one candidate and
-// makes exactly one request against it.
-function resolveProxy() {
-  if (window.__rccServedByProxy) return { base: location.origin, kind: 'local' };
-  if (isLocalHostname(location.hostname)) return { base: LOCAL_PROXY, kind: 'local' };
+// than a guess - one candidate, one request, no probing at all.
+//
+// Returned in priority order; the first that answers wins.
+function resolveProxies() {
+  if (window.__rccServedByProxy) return [{ base: location.origin, kind: 'local' }];
 
   const hosted = (HOSTED_PROXY || '').trim().replace(/\/+$/, '');
-  if (hosted) return { base: hosted, kind: 'hosted' };
-  return { base: LOCAL_PROXY, kind: 'none' };
+
+  if (isLocalHostname(location.hostname)) {
+    const local = { base: LOCAL_PROXY, kind: 'local' };
+    return hosted ? [local, { base: hosted, kind: 'hosted' }] : [local];
+  }
+
+  return hosted ? [{ base: hosted, kind: 'hosted' }] : [{ base: LOCAL_PROXY, kind: 'none' }];
 }
 
 async function isOurProxy(base, timeoutMs) {
@@ -109,19 +119,29 @@ async function isOurProxy(base, timeoutMs) {
  * that reports back through onSettled once the thing is actually up.
  */
 export async function checkProxy(onSettled) {
-  const { base, kind } = resolveProxy();
-  proxyBase = base;
-  proxyKind = kind;
+  const candidates = resolveProxies();
 
-  if (kind === 'none') {
+  // Settle on the last candidate up front so a total miss still reports against
+  // something sensible, then let any candidate that actually answers win.
+  const last = candidates[candidates.length - 1];
+  proxyBase = last.base;
+  proxyKind = last.kind;
+
+  if (last.kind === 'none' && candidates.length === 1) {
     proxyOnline = false;
     return 'none';
   }
 
-  if (await isOurProxy(base, kind === 'hosted' ? 6000 : 2500)) {
-    proxyOnline = true;
-    return 'online';
+  for (const c of candidates) {
+    if (await isOurProxy(c.base, c.kind === 'hosted' ? 6000 : 2500)) {
+      proxyBase = c.base;
+      proxyKind = c.kind;
+      proxyOnline = true;
+      return 'online';
+    }
   }
+
+  const { base, kind } = last;
 
   if (kind === 'local') {
     proxyOnline = false;

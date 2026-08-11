@@ -10,6 +10,11 @@ services:
     name: roleplay-card-converter-proxy
     runtime: node
     plan: free
+    # Without this Render silently picks Oregon, which puts a transatlantic
+    # round trip in front of every library search for European users. Change it
+    # to whichever region is nearest you - and note that Render cannot move an
+    # existing service, so this only takes effect on one created fresh.
+    region: frankfurt
     buildCommand: ""
     startCommand: "node proxy.js"
     healthCheckPath: /health
