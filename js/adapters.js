@@ -133,6 +133,17 @@ const chub = {
   // across is a filter silently ignored. Unknown params are harmless here (the
   // API returns 200 and skips them); only invalid *values* for known params
   // are rejected, and a pasted chub URL carries chub's own valid values.
+  //
+  // `sort` is the one parameter the API is strict about: an unknown value gets
+  // a 400 rather than being ignored. Helpfully, that error lists the accepted
+  // ones, which is exactly where this set came from.
+  SORTS: new Set([
+    'download_count', 'id', 'rating', 'rating_count', 'last_activity_at',
+    'trending_downloads', 'n_favorites', 'created_at', 'star_count', 'msgs_chat',
+    'msgs_user', 'chats_user', 'name', 'timeline', 'n_tokens', 'random',
+    'trending', 'newcomer', 'favorite_time', 'ai_rating', 'public_chats', 'default',
+  ]),
+
   async listLibrary(url, page, ctx = {}) {
     const src = new URL(url).searchParams;
     const q = new URLSearchParams(src);
@@ -155,7 +166,19 @@ const chub = {
     q.set('venus', 'true');
     // Defaults only when the URL is silent - never override a chosen filter.
     if (!q.get('nsfw')) q.set('nsfw', 'true');
-    if (!q.get('sort')) q.set('sort', 'star_count');
+
+    // The site writes its homepage orderings as `segment=` - "Newcomer",
+    // "Trending" and friends - but the API only knows `sort=` and drops
+    // `segment` on the floor. Forwarded verbatim it therefore did nothing, and
+    // the default below then overwrote the order the person actually picked.
+    // The two vocabularies use the same words, so a segment naming a real sort
+    // simply becomes one.
+    const chosen = [q.get('sort'), q.get('segment')].find(v => v && this.SORTS.has(v));
+
+    // Anything left over is a value this API would 400 on, so fall back rather
+    // than fail the whole mirror over an ordering.
+    q.set('sort', chosen || 'star_count');
+    q.delete('segment');
 
     const res = await getJson(`https://api.chub.ai/search?${q}`, { token: ctx.token || null });
     const nodes = res.data?.nodes || res.nodes || [];

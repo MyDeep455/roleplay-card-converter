@@ -26,4 +26,4 @@
  * because then the proxy is already on the same origin as the page.
  * ========================================================================= */
 
-export const HOSTED_PROXY = '';
+export const HOSTED_PROXY = 'https://roleplay-card-converter-proxy.onrender.com';
