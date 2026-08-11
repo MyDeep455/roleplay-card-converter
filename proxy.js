@@ -240,7 +240,19 @@ const server = http.createServer((req, res) => {
   const here = new URL(req.url, `http://${HOST}:${PORT}`);
 
   if (here.pathname === '/health') {
-    return jsonError(res, 200, { ok: true, service: 'roleplay-card-converter-proxy', port: PORT });
+    // `service` is the fixed identity string the page checks for - it must not
+    // change. The rest is diagnostics: with two deployments answering on two
+    // hostnames, an identical reply from both makes it impossible to tell which
+    // one you reached, or to confirm a region change actually took effect from
+    // anywhere except the dashboard. Names and regions are not secrets; no
+    // other environment values are exposed here.
+    return jsonError(res, 200, {
+      ok: true,
+      service: 'roleplay-card-converter-proxy',
+      port: PORT,
+      instance: process.env.RENDER_SERVICE_NAME || (IS_HOSTED ? 'unknown' : 'local'),
+      region: process.env.RENDER_REGION || (IS_HOSTED ? 'unreported' : 'local'),
+    });
   }
 
   if (here.pathname === '/proxy') {
