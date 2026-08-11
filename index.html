@@ -163,18 +163,10 @@
     <h2>Settings</h2>
 
     <h3>Platform tokens</h3>
-    <p class="hint">Optional on chub.ai and unused on Character Tavern, but close to required on
-      JanitorAI &mdash; signed out it serves only the first page of results and hides every character
-      definition. Stored only in this tool's IndexedDB on your machine, and sent to the matching
-      platform and nowhere else.</p>
+    <p class="hint">Optional on chub.ai, but close to required on JanitorAI &mdash; signed out it
+      serves only the first page of results and hides every character definition. Stored only in this
+      tool's IndexedDB on your machine, and sent to the matching platform and nowhere else.</p>
     <div id="token-fields"></div>
-
-    <h3>Proxy</h3>
-    <p class="hint">Character Tavern's search API is the only thing this tool cannot fetch directly, so
-      the proxy affects exactly one feature: mirroring a library on that site. Everything else &mdash;
-      all of chub.ai, all of JanitorAI, single cards, avatars, galleries &mdash; ignores it completely.</p>
-    <label class="check"><input type="checkbox" id="use-proxy" checked /> Use the proxy for Character Tavern library mirroring</label>
-    <div id="proxy-detail" class="hint"></div>
 
     <div class="modal-actions">
       <button id="settings-save" class="btn btn-primary">Save</button>

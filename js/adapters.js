@@ -86,7 +86,7 @@ const chub = {
   id: 'chub',
   label: 'Chub.ai',
   hosts: ['chub.ai', 'www.chub.ai', 'characterhub.org', 'www.characterhub.org', 'chub.chat'],
-  tokenHint: 'Optional - only needed to reach your own private cards. On chub.ai: DevTools > Application > Local Storage > CH-API-KEY.',
+  tokenHint: 'Optional - only needed to reach your own private cards. On chub.ai: Press F12 > DevTools > Application > Local Storage > CH-API-KEY.',
 
   matchUrl(u) { return this.hosts.includes(u.hostname.toLowerCase()); },
 
@@ -265,7 +265,9 @@ const characterTavern = {
   id: 'character-tavern',
   label: 'Character Tavern',
   hosts: ['character-tavern.com', 'www.character-tavern.com'],
-  tokenHint: 'Not needed.',
+  // No tokenHint: this site has no token of any kind, and an adapter that
+  // declares none gets no field in Settings rather than one saying "not
+  // needed", which is a box to wonder about for no reason.
 
   CARD_CDN: 'https://ct-cards.storage.character-tavern.com',
 
@@ -451,9 +453,13 @@ const janitorai = {
   id: 'janitorai',
   label: 'JanitorAI',
   hosts: ['janitorai.com', 'www.janitorai.com'],
+  // The chip beside the field. chub's token really is optional; this one is
+  // the difference between working cards and empty ones, so it must not sit
+  // under the same word.
+  tokenLabel: 'recommended',
   tokenHint:
     'Needed for almost everything - without it JanitorAI serves only the first page of results ' +
-    'and no character definitions. On janitorai.com while logged in: DevTools > Application > ' +
+    'and no character definitions. On janitorai.com while logged in: Press F12 > DevTools > Application > ' +
     'Cookies > sb-auth-auth-token.0. Paste the whole value. It expires after a few hours, so ' +
     're-copy it when searches start failing.',
 

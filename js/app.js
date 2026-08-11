@@ -6,7 +6,7 @@ import { ADAPTERS, adapterForUrl } from './adapters.js';
 import { toCccCharacter, toCccBackup } from './convert.js';
 import { blobToWebpDataUrl } from './media.js';
 import {
-  checkProxy, setProxyEnabled, getProxyKind, needsProxy, isProxyBlocked, BLOCKED_MESSAGE,
+  checkProxy, getProxyKind, needsProxy, isProxyBlocked, BLOCKED_MESSAGE,
 } from './transport.js';
 import {
   saveCard, getCard, deleteCard, clearCards, countCards,
@@ -17,7 +17,6 @@ const $ = id => document.getElementById(id);
 
 const state = {
   tokens: {},          // adapterId -> token
-  useProxy: true,
   bulk: {
     adapter: null,
     url: '',
@@ -279,11 +278,15 @@ function paintProxyStatus(status) {
   const kind = getProxyKind();
   const [label, detailText] = spec[kind] || spec.local || spec.hosted || spec.none;
 
-  $('proxy-status').className = `pill ${spec.cls}`;
+  const pill = $('proxy-status');
+  pill.className = `pill ${spec.cls}`;
   $('proxy-status-text').textContent = label;
 
-  const detail = $('proxy-detail');
-  if (detail) detail.textContent = detailText;
+  // The longer explanation used to sit in a Settings panel. It hangs off the
+  // pill instead: the pill is the only place the proxy is ever mentioned now,
+  // so the detail belongs on the thing it describes rather than behind a
+  // heading someone has to go looking for.
+  pill.title = detailText;
 }
 
 async function refreshProxyStatus() {
@@ -302,14 +305,17 @@ $('proxy-status').addEventListener('click', refreshProxyStatus);
 
 /* ---------------- settings ---------------- */
 
+// An adapter with no tokenHint has no token to give, so it gets no field.
+// Character Tavern is the case: it wants nothing, and a box labelled "not
+// needed" is one more thing to read and wonder about.
 function buildTokenFields() {
   const wrap = $('token-fields');
   wrap.innerHTML = '';
-  ADAPTERS.forEach(a => {
+  ADAPTERS.filter(a => a.tokenHint).forEach(a => {
     const div = document.createElement('div');
     div.className = 'token-field';
     div.innerHTML = `
-      <label for="token-${a.id}">${a.label} <span class="chip">optional</span></label>
+      <label for="token-${a.id}">${a.label} <span class="chip">${a.tokenLabel || 'optional'}</span></label>
       <p class="hint">${a.tokenHint}</p>
       <input type="password" id="token-${a.id}" placeholder="Paste token" autocomplete="off" spellcheck="false" />`;
     wrap.appendChild(div);
@@ -319,8 +325,6 @@ function buildTokenFields() {
 
 $('settings-btn').addEventListener('click', () => {
   buildTokenFields();
-  $('use-proxy').checked = state.useProxy;
-  refreshProxyStatus();
   $('settings-modal').classList.remove('hidden');
 });
 
@@ -331,10 +335,7 @@ $('settings-save').addEventListener('click', async () => {
     const input = $(`token-${a.id}`);
     if (input) state.tokens[a.id] = input.value.trim();
   });
-  state.useProxy = $('use-proxy').checked;
-  setProxyEnabled(state.useProxy);
   await setSetting('tokens', state.tokens);
-  await setSetting('useProxy', state.useProxy);
   $('settings-modal').classList.add('hidden');
 
   // The notice exists to ask for exactly this. Leaving it up after it has been
@@ -955,8 +956,6 @@ $('clear-all').addEventListener('click', async () => {
 
 (async function init() {
   state.tokens = (await getSetting('tokens', {})) || {};
-  state.useProxy = (await getSetting('useProxy', true)) !== false;
-  setProxyEnabled(state.useProxy);
   await renderResults();
 
   // Not awaited: the suggestions go direct to chub and have nothing to do with

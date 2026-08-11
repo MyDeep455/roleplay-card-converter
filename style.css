@@ -162,7 +162,6 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
 .btn-ghost { background: none; border-color: var(--border); color: var(--text-dim); }
 .btn-small { padding: 6px 11px; font-size: 0.8rem; }
 
-.check { display: flex; align-items: center; gap: 8px; font-size: 0.87rem; color: var(--text-dim); cursor: pointer; }
 
 /* ---------------- status ---------------- */
 

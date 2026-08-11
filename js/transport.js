@@ -54,7 +54,6 @@ const PROXIED_HOSTS = new Set([
 ]);
 
 let proxyOnline = null;   // null = not yet known (unchecked, or still waking)
-let proxyEnabled = true;
 
 export function needsProxy(url) {
   try {
@@ -62,10 +61,6 @@ export function needsProxy(url) {
   } catch {
     return false;
   }
-}
-
-export function setProxyEnabled(on) {
-  proxyEnabled = !!on;
 }
 
 export function getProxyKind() {
@@ -209,10 +204,6 @@ const NO_PROXY_TAIL =
   'images and all of chub.ai work without one.)';
 
 function unavailableMessage() {
-  if (!proxyEnabled) {
-    return 'The proxy is switched off in Settings, and mirroring a Character Tavern library needs it.' +
-      NO_PROXY_TAIL;
-  }
   if (proxyKind === 'none') {
     return 'Mirroring a Character Tavern library needs a proxy, and this copy of the tool has none ' +
       'configured. Download the tool and run it locally to use this feature.' + NO_PROXY_TAIL;
@@ -229,7 +220,7 @@ function unavailableMessage() {
 export async function httpGet(url, { token = null, accept = null } = {}) {
   const viaProxy = needsProxy(url);
 
-  if (viaProxy && (!proxyEnabled || proxyOnline === false || proxyKind === 'none')) {
+  if (viaProxy && (proxyOnline === false || proxyKind === 'none')) {
     throw new Error(unavailableMessage());
   }
 
