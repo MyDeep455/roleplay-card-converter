@@ -86,7 +86,9 @@ browser — an ad blocker or privacy extension stopped it, and no amount of retr
 blocking lists routinely cover the shared domains free hosting platforms hand out, and a blocked
 request is indistinguishable from a dead server as far as the page can tell.
 
-Allow this site in your blocker (in most, click its toolbar icon and disable it for this page). Only
+Allow this site in your blocker — uBlock Origin, Adblock Plus, Ghostery and Privacy Badger all do
+this from their toolbar icon. Opening the page in a private window, where extensions are usually
+off, confirms the diagnosis in seconds. Only
 Character Tavern library mirroring is affected; nothing else on the page makes that request.
 
 `proxy.js` is what fills that gap. It is about 250 lines, has no dependencies, and only ever fetches

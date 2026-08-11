@@ -97,15 +97,34 @@ function resolveProxies() {
   return hosted ? [{ base: hosted, kind: 'hosted' }] : [{ base: LOCAL_PROXY, kind: 'none' }];
 }
 
-async function isOurProxy(base, timeoutMs) {
+// A request an extension cancels and a server that never answers both surface
+// as the same bare "failed to fetch", so the two are told apart by how long the
+// failure took. An extension kills the request before it leaves the browser, in
+// single-digit milliseconds; anything that genuinely goes out - a refused
+// connection, a sleeping host, a DNS miss - costs a network round trip or more.
+// The gap is large enough that a generous threshold still separates them.
+const BLOCKED_MS = 400;
+let proxyBlocked = false;
+
+async function isOurProxy(base, timeoutMs, watchBlocked = false) {
+  const started = Date.now();
   try {
     const res = await fetch(`${base}/health`, { signal: AbortSignal.timeout(timeoutMs) });
     if (!res.ok) return false;
     const body = await res.json();
     return body && body.service === 'roleplay-card-converter-proxy';
-  } catch {
+  } catch (err) {
+    // A timeout is the opposite signal - it waited the whole budget - so it is
+    // never a block, however long or short that budget was.
+    if (watchBlocked && err.name !== 'TimeoutError' && Date.now() - started < BLOCKED_MS) {
+      proxyBlocked = true;
+    }
     return false;
   }
+}
+
+export function isProxyBlocked() {
+  return proxyBlocked;
 }
 
 /**
@@ -120,6 +139,7 @@ async function isOurProxy(base, timeoutMs) {
  */
 export async function checkProxy(onSettled) {
   const candidates = resolveProxies();
+  proxyBlocked = false;
 
   // Settle on the last candidate up front so a total miss still reports against
   // something sensible, then let any candidate that actually answers win.
@@ -133,7 +153,10 @@ export async function checkProxy(onSettled) {
   }
 
   for (const c of candidates) {
-    if (await isOurProxy(c.base, c.kind === 'hosted' ? 6000 : 2500)) {
+    // Only a hosted proxy is worth watching for this. A local one refuses
+    // instantly whenever the server simply is not running, which is the normal
+    // case rather than a sign of anything.
+    if (await isOurProxy(c.base, c.kind === 'hosted' ? 6000 : 2500, c.kind === 'hosted')) {
       proxyBase = c.base;
       proxyKind = c.kind;
       proxyOnline = true;
@@ -146,6 +169,13 @@ export async function checkProxy(onSettled) {
   if (kind === 'local') {
     proxyOnline = false;
     return 'offline';
+  }
+
+  // Nothing will change by waiting when the request never left the browser, so
+  // say so now rather than showing a minute of "waking" that cannot succeed.
+  if (proxyBlocked) {
+    proxyOnline = false;
+    return 'blocked';
   }
 
   // Hosted and not answering yet. Treat it as waking rather than dead: a
@@ -161,6 +191,16 @@ export async function checkProxy(onSettled) {
   return 'waking';
 }
 
+// Named extensions rather than "an ad blocker", because someone running uBlock
+// Origin does not necessarily think of it as one, and the fix is per-extension.
+export const BLOCKED_MESSAGE =
+  'A browser extension blocked the connection to the proxy, so mirroring a Character Tavern library ' +
+  'cannot work until it is allowed. This is almost always an ad blocker - uBlock Origin, Adblock ' +
+  'Plus, Ghostery, Privacy Badger or similar - because blocking lists cover the shared domains free ' +
+  'hosting platforms use. Click your blocker\'s toolbar icon and allow this site, then click the ' +
+  'proxy pill to retry. (Opening the page in a private window, where extensions are usually off, ' +
+  'confirms it in seconds.)';
+
 const NO_PROXY_TAIL =
   ' (Only Character Tavern library mirroring needs a proxy - single cards, ' +
   'images and all of chub.ai work without one.)';
@@ -174,16 +214,14 @@ function unavailableMessage() {
     return 'Mirroring a Character Tavern library needs a proxy, and this copy of the tool has none ' +
       'configured. Download the tool and run it locally to use this feature.' + NO_PROXY_TAIL;
   }
+  if (proxyBlocked) {
+    return BLOCKED_MESSAGE + NO_PROXY_TAIL;
+  }
+
   if (proxyKind === 'hosted') {
-    // An ad blocker is named first on purpose. A blocked request and a dead
-    // server look identical to the page - both surface as a bare "failed to
-    // fetch" - but the browser writes ERR_BLOCKED_BY_CLIENT to the console,
-    // and blockers do filter the hosts free platforms hand out. Saying only
-    // "could not be reached" sends people to check a server that is fine.
-    return 'The cloud proxy could not be reached, so mirroring a Character Tavern library is ' +
-      'unavailable. The usual cause is an ad blocker or privacy extension blocking the request - ' +
-      'check the browser console for ERR_BLOCKED_BY_CLIENT, and allow this site if you see it. ' +
-      'Otherwise the proxy may just be waking up; click the proxy pill in the header to retry.' +
+    return 'The cloud proxy did not answer, so mirroring a Character Tavern library is unavailable ' +
+      'right now. It may still be waking up - click the proxy pill in the header to retry. If that ' +
+      'keeps failing, an ad blocker may be the cause; see the console for ERR_BLOCKED_BY_CLIENT.' +
       NO_PROXY_TAIL;
   }
   return 'This needs the local server, which is not running. Start it with "npm start" in the tool ' +

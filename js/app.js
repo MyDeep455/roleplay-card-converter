@@ -5,7 +5,9 @@
 import { ADAPTERS, adapterForUrl } from './adapters.js';
 import { toCccCharacter, toCccBackup, normalizeSpecCard } from './convert.js';
 import { extractCardFromPng, blobToWebpDataUrl } from './media.js';
-import { checkProxy, setProxyEnabled, getProxyKind, needsProxy } from './transport.js';
+import {
+  checkProxy, setProxyEnabled, getProxyKind, needsProxy, isProxyBlocked, BLOCKED_MESSAGE,
+} from './transport.js';
 import {
   saveCard, getCard, deleteCard, clearCards, countCards,
   listCardsLight, getSetting, setSetting,
@@ -137,9 +139,14 @@ const PROXY_STATES = {
   offline: {
     cls: 'pill-off',
     local: ['Proxy off', 'No local server. Everything works except mirroring a Character Tavern library.'],
-    hosted: ['Proxy unreachable', 'The cloud proxy did not answer - most often an ad blocker or privacy ' +
-      'extension blocking it, so allow this site if the console shows ERR_BLOCKED_BY_CLIENT. Everything ' +
-      'else works either way; only mirroring a Character Tavern library needs it. Click the pill to retry.'],
+    hosted: ['Proxy unreachable', 'The cloud proxy did not answer. It may be waking up - click the pill ' +
+      'to retry. Everything else works either way; only mirroring a Character Tavern library needs it.'],
+  },
+  // Its own state rather than a flavour of offline: the cause is on this
+  // machine, retrying cannot fix it, and the fix is one the person can act on.
+  blocked: {
+    cls: 'pill-blocked',
+    hosted: ['Proxy blocked', BLOCKED_MESSAGE],
   },
   none: {
     cls: 'pill-off',
@@ -284,7 +291,7 @@ async function startMirror(page) {
 
     // Say so up front when the wait is going to be a cold start rather than a
     // slow site, otherwise a minute of nothing reads as a hang.
-    const coldStart = needsProxy(raw) && getProxyKind() === 'hosted';
+    const coldStart = needsProxy(raw) && getProxyKind() === 'hosted' && !isProxyBlocked();
     setStatus(
       status,
       coldStart

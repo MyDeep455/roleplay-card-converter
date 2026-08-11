@@ -85,9 +85,13 @@ code {
 .pill-on   .dot { background: var(--ok); }
 .pill-off  .dot { background: var(--warn); }
 .pill-wake .dot { background: var(--accent); animation: pill-pulse 1.4s ease-in-out infinite; }
-.pill-on   { border-color: rgba(94, 203, 138, 0.4); }
-.pill-off  { border-color: rgba(224, 181, 82, 0.4); }
-.pill-wake { border-color: rgba(91, 127, 255, 0.4); }
+.pill-blocked .dot { background: var(--danger); }
+.pill-on      { border-color: rgba(94, 203, 138, 0.4); }
+.pill-off     { border-color: rgba(224, 181, 82, 0.4); }
+.pill-wake    { border-color: rgba(91, 127, 255, 0.4); }
+/* Redder than "off": something is actively stopping this, and unlike the other
+   states there is a fix the person can apply. */
+.pill-blocked { border-color: rgba(227, 115, 95, 0.5); }
 
 /* A sleeping cloud proxy can take a minute to wake, which is long enough that
    a still dot reads as a stuck one. */
