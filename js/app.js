@@ -37,6 +37,19 @@ function setStatus(el, message, kind = '') {
   el.className = `status ${kind}`;
 }
 
+// A card the site refuses looks identical to one that does not exist, and the
+// most common cause - the site serving this connection a filtered library - is
+// the one nobody can guess from the message. Only added when the site actually
+// answered and said no; a mistyped URL gets no such excuse.
+const REGION_HINT =
+  ' If you can open it on the site itself, your connection is being shown a filtered library here - ' +
+  'see "Missing characters?" under Converted cards.';
+
+function describeError(err) {
+  const msg = err?.message || String(err);
+  return err?.name === 'HttpError' ? msg + REGION_HINT : msg;
+}
+
 function fileSafe(name) {
   return (name || 'character').replace(/[^a-z0-9_\- ]/gi, '').replace(/\s+/g, '_').slice(0, 60) || 'character';
 }
@@ -275,7 +288,7 @@ async function convertSingle(raw, adapter) {
       'ok');
     $('url-input').value = '';
   } catch (err) {
-    setStatus(status, err.message || String(err), 'error');
+    setStatus(status, describeError(err), 'error');
   } finally {
     btn.disabled = false;
   }
@@ -339,7 +352,7 @@ async function startMirror(page, sourceUrl = null) {
     setStatus(status, `${state.bulk.items.length} cards on page ${page}. Tick the ones you want.`, 'ok');
     renderBulkGrid();
   } catch (err) {
-    setStatus(status, err.message || String(err), 'error');
+    setStatus(status, describeError(err), 'error');
   } finally {
     $('convert-btn').disabled = false;
   }
@@ -616,6 +629,10 @@ $('bulk-convert').addEventListener('click', async () => {
   let done = 0, failed = 0;
   const failures = [];
 
+  // Whether the sites actually refused anything, as opposed to the run hitting
+  // network trouble. Worth saying once at the end rather than on every line.
+  let anyRefused = false;
+
   for (const item of chosen) {
     if (state.cancelBulk) break;
 
@@ -639,6 +656,7 @@ $('bulk-convert').addEventListener('click', async () => {
       done++;
     } catch (err) {
       failed++;
+      if (err?.name === 'HttpError') anyRefused = true;
       failures.push(`${item.name}: ${err.message || err}`);
     }
 
@@ -654,7 +672,8 @@ $('bulk-convert').addEventListener('click', async () => {
   const cancelled = state.cancelBulk ? ' (cancelled early)' : '';
   setStatus(status,
     `Converted ${done} card(s)${failed ? `, ${failed} failed` : ''}${cancelled}.` +
-    (failures.length ? `\n\nFailures:\n- ${failures.slice(0, 12).join('\n- ')}` : ''),
+    (failures.length ? `\n\nFailures:\n- ${failures.slice(0, 12).join('\n- ')}` : '') +
+    (anyRefused ? `\n${REGION_HINT.trim()}` : ''),
     failed ? 'error' : 'ok');
 });
 
