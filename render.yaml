@@ -6,8 +6,12 @@
 # Render reads this file when you point a new Blueprint at the repo. There is
 # nothing to build and nothing to install: proxy.js has no dependencies.
 services:
+  # Render takes the service name from here, not from anything typed in the
+  # dashboard, and refuses to create one whose name is already taken. Renaming
+  # this is therefore how you stand a replacement up beside the old service
+  # rather than having to delete the old one first and go dark in between.
   - type: web
-    name: roleplay-card-converter-proxy
+    name: ccc-card-converter
     runtime: node
     plan: free
     # Without this Render silently picks Oregon, which puts a transatlantic
