@@ -44,63 +44,58 @@ const STEPS = [
     target: null,
     place: 'center',
     label: 'Welcome',
-    title: 'Turn any character card into one you can chat with',
-    body: 'Characters on chub.ai, Character Tavern and JanitorAI are each stored in that site’s '
-        + 'own format, and none of them are the format Casual Character Chat reads. This tool '
-        + 'rewrites them — avatar, greetings, personality, tags and all — so you can import '
-        + 'them and start talking. Nothing to install, and nothing leaves your browser.',
+    title: 'Grab characters to chat with!',
+    body: 'Here you can download countless character cards from other platforms for free '
+        + 'This tool auto-converts their data and creates a character card for you to use '
+        + 'in Casual Character Chat. First conversion might take a minute, then converts fast.',
   },
   {
     target: '.browse-links',
     place: 'bottom',
     label: 'Step 1',
-    title: 'Find someone worth talking to',
-    body: 'Open any of these three sites and browse until something catches your eye, then copy '
-        + 'the address out of your browser’s address bar. One character’s page works, and so '
-        + 'does a whole search or category page.',
+    title: 'Find characters you like',
+    body: 'Open any of these three sites and browse for any desired characters, then copy '
+        + 'the address (URL) out of your browser’s address bar at the top of your screen.',
   },
   {
     target: '#url-input',
     place: 'bottom',
     label: 'Step 2',
     title: 'Paste the link in here',
-    body: 'One link, or a stack of them pasted together — the tool recognises which site each '
-        + 'one came from on its own. You never have to tell it, and you never have to download '
-        + 'anything from those sites yourself.',
+    body: 'One link, or multiple links beneath each other - both are possible.'
+        + 'Works for single characters as well as for a whole search page.',
   },
   {
     target: '#convert-btn',
     place: 'right',
     label: 'Step 3',
     title: 'Convert',
-    body: 'A single character lands in the results further down within a second or two. A search '
-        + 'or category page instead fills the grid below with everything on it, so you can take '
-        + 'your pick.',
+    body: 'Single characters are converted immediately when you click the Convert button. A search '
+        + 'or category page instead fills the grid below for you to select.',
   },
   {
     target: '#bulk-grid',
     place: 'top',
     label: 'In bulk',
-    title: 'Or grab a whole page at once',
-    body: 'Every card comes in as a tile with its blurb, already showing chub’s trending '
-        + 'characters right now — so there is something here to try before you paste anything. '
-        + 'Tick the ones you want, or hit “Select all”, and convert the lot in one click.',
-  },
+    title: 'You can download right away!',
+    body: 'It is already showing you chub.ai’s trending characters right now — tick the ones you want and convert in one click.'
+        + 'Note: Some platforms (such as chub.ai) block NSFW adult content for users outside the U.S. If you want to see all unfiltered NSFW characters '
+        + 'on those platforms, you’ll need to use a VPN that masks your location to make it appear as if you’re in the U.S.',
+  }, 
   {
     target: '.results-head',
     place: 'bottom',
     label: 'Step 4',
-    title: 'Download, then import',
-    body: 'Converted cards stay here in your browser until you clear them. Download one on its '
-        + 'own, or all of them as a single file, and load it into Casual Character Chat with its '
-        + '“Import Data” button. That is the last step — the character is yours to chat with.',
+    title: 'Download, then import. Finished!',
+    body: 'Converted cards stay here in your browser until you clear them.'
+        + 'Simply load them into Casual Character Chat with the “Import Data” button of the app.',
   },
   {
     target: '.topbar-actions',
     place: 'bottom',
     label: 'Good to know',
     title: 'Status and settings',
-    body: 'The pill tells you whether the fetcher that reaches those sites is awake; it can take '
+    body: 'The pill tells you whether the server of this tool is awake; it can take '
         + 'a minute to stir on a first visit. Settings holds optional platform tokens — a '
         + 'JanitorAI one matters most, as signed out that site hides every character definition.',
   },
@@ -109,9 +104,8 @@ const STEPS = [
     place: 'center',
     label: 'Ready',
     title: 'That’s the whole loop',
-    body: 'Copy a link → Convert → Download → Import. If characters you can see on a site '
-        + 'never show up here, “Missing characters?” under the grid explains why and how to fix '
-        + 'it. You can replay this tour any time from the Tour button up top.',
+    body: 'Copy a link → Convert → Download → Import.'
+        + 'You can replay this tour any time from the Tour button up top.',
   },
 ];
 
