@@ -497,7 +497,7 @@ async function showStep(i, dir = 1) {
   $('tour-title').textContent = step.title;
   $('tour-body').textContent = step.body;
   $('tour-back').disabled = index === 0;
-  $('tour-next').textContent = index === steps.length - 1 ? 'Start converting' : 'Next';
+  $('tour-next').textContent = index === steps.length - 1 ? 'Start now!' : 'Next';
   $('tour-skip').textContent = index === steps.length - 1 ? 'Close' : 'Skip tour';
   renderDots();
 
