@@ -45,9 +45,9 @@ const STEPS = [
     place: 'center',
     label: 'Welcome',
     title: 'Grab characters to chat with!',
-    body: 'Here you can download countless character cards from other platforms for free '
+    body: 'Here you can download countless character cards from other platforms for free.'
         + 'This tool auto-converts their data and creates a character card for you to use '
-        + 'in Casual Character Chat. First conversion might take a minute, then converts fast.',
+        + 'in Casual Character Chat. First conversion might take a minute, then it converts fast.',
   },
   {
     target: '.browse-links',
@@ -62,7 +62,7 @@ const STEPS = [
     place: 'bottom',
     label: 'Step 2',
     title: 'Paste the link in here',
-    body: 'One link, or multiple links beneath each other - both are possible.'
+    body: 'One link, or multiple links beneath each other - both are possible. '
         + 'Works for single characters as well as for a whole search page.',
   },
   {
@@ -78,7 +78,7 @@ const STEPS = [
     place: 'top',
     label: 'In bulk',
     title: 'You can download right away!',
-    body: 'It is already showing you chub.ai’s trending characters right now — tick the ones you want and convert in one click.'
+    body: 'It is already showing you chub.ai’s trending characters right now — tick the ones you want and convert in one click. '
         + 'Note: Some platforms (such as chub.ai) block NSFW adult content for users outside the U.S. If you want to see all unfiltered NSFW characters '
         + 'on those platforms, you’ll need to use a VPN that masks your location to make it appear as if you’re in the U.S.',
   }, 
@@ -87,7 +87,7 @@ const STEPS = [
     place: 'bottom',
     label: 'Step 4',
     title: 'Download, then import. Finished!',
-    body: 'Converted cards stay here in your browser until you clear them.'
+    body: 'Converted cards stay here in your browser until you clear them. '
         + 'Simply load them into Casual Character Chat with the “Import Data” button of the app.',
   },
   {
@@ -95,7 +95,7 @@ const STEPS = [
     place: 'center',
     label: 'Ready',
     title: 'That’s the whole loop',
-    body: 'Copy a link → Convert → Download → Import.'
+    body: 'Copy any link → convert it → download it → import it. '
         + 'You can replay this tour any time from the Tour button up top.',
   },
 ];
