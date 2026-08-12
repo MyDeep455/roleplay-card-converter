@@ -91,15 +91,6 @@ const STEPS = [
         + 'Simply load them into Casual Character Chat with the “Import Data” button of the app.',
   },
   {
-    target: '.topbar-actions',
-    place: 'bottom',
-    label: 'Good to know',
-    title: 'Status and settings',
-    body: 'The pill tells you whether the server of this tool is awake; it can take '
-        + 'a minute to stir on a first visit. Settings holds optional platform tokens — a '
-        + 'JanitorAI one matters most, as signed out that site hides every character definition.',
-  },
-  {
     target: null,
     place: 'center',
     label: 'Ready',
@@ -130,7 +121,22 @@ let frame = 0;
 let lastGeometry = '';   // so the loop only writes styles when something moved
 let returnFocus = null;
 
+/* True from the moment a step is left until the next one has been scrolled to
+   and is ready to show. Nothing visible moves during that window: the light
+   closes, the page travels behind an even dim, and the light reopens on the
+   new target. See showStep. */
+let moving = false;
+
+/* Bumped by every showStep, so an older one that is still waiting on a fade or
+   a scroll can tell it has been overtaken and bow out. */
+let showToken = 0;
+
+/* How long the card takes to fade, and how long anything waits for it. Must
+   match the .tour-pop transition in the stylesheet. */
+const FADE = 150;
+
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const wait = ms => new Promise(r => setTimeout(r, ms));
 
 /* ---------------- element lookup ---------------- */
 
@@ -160,15 +166,33 @@ function currentTarget() {
  * first stretch points at it just as clearly, and the step that does this is
  * scrolled to its top rather than its middle so the lit part is the part that
  * was scrolled to.
+ *
+ * @param {number} popH  height of the card, which the highlight gives way to
  */
-function targetRect(el) {
+function targetRect(el, popH) {
   const r = el.getBoundingClientRect();
+  const vh = innerHeight;
 
   // Less on a phone, where the card is docked to an edge and takes a third of
   // the screen with it: half the window for the highlight would leave the two
   // of them fighting over the same band.
   const share = innerWidth <= SHEET_WIDTH ? 0.42 : 0.5;
-  const height = Math.min(r.height, innerHeight * share);
+  let height = Math.min(r.height, vh * share);
+
+  // A target long enough to be capped has been scrolled to its top and runs the
+  // full width, so the only place left for the card is underneath it. Half the
+  // window is a guess at how much room that needs; this is the actual figure,
+  // and without it a step whose wording runs a line or two long tips over into
+  // having nowhere to go and ends up floating in the middle of the lit area -
+  // a highlight with the card sitting on top of the thing it is highlighting.
+  //   Not below a quarter of the window, though. A card that large has not been
+  // squeezed out by one line too many, and shaving the highlight down to a strip
+  // to seat it would only trade one bad frame for another.
+  if (height < r.height) {
+    const room = vh - EDGE - GAP - popH - r.top - PAD - 2;
+    if (room >= vh * 0.25) height = Math.min(height, room);
+  }
+
   return { top: r.top - PAD, left: r.left - PAD, width: r.width + PAD * 2, height: height + PAD * 2 };
 }
 
@@ -200,29 +224,42 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
  * Writes the frame: where the hole is, where the card is, where its pointer
  * points. Called every animation frame, and skips the write entirely when
  * nothing has moved since the last one - which is nearly always.
+ *
+ * Nothing here is animated, deliberately. The highlight is glued to its target
+ * for the same reason a label is glued to the thing it labels: the moment it is
+ * allowed to ease towards where it should be, it trails behind every scroll and
+ * arrives at each new step by sliding across the page like something thrown at
+ * it. Steps change by closing the light and reopening it, which is showStep's
+ * job; this function only ever writes where things are right now.
  */
 function position() {
   const pop = $('tour-pop');
   const light = $('tour-spotlight');
   const arrow = $('tour-arrow');
-  const el = currentTarget();
   const vw = innerWidth, vh = innerHeight;
 
-  // A step with no target still needs the page dimmed, and a zero-sized
-  // spotlight in the middle of the window does exactly that - the shadow it
-  // casts is the dimming, so there is nothing special to switch on.
-  const rect = el
-    ? targetRect(el)
-    : { top: vh / 2, left: vw / 2, width: 0, height: 0 };
+  // Between steps there is no target, whatever the step says: the light is shut
+  // while the page travels.
+  const el = moving ? null : currentTarget();
 
-  // Width first, height after: docking the card to an edge makes it wider than
-  // its floating size and therefore shorter, and measuring the old height would
-  // park a bottom-docked card below where it belongs for a frame.
+  // The card is measured before the highlight is sized, because a capped
+  // highlight hands the card its room out of its own share and has to know how
+  // much that is. Width first, height after: docking the card to an edge makes
+  // it wider than its floating size and therefore shorter, and measuring the
+  // old height would park a bottom-docked card below where it belongs for a
+  // frame.
   const sheet = vw <= SHEET_WIDTH;
   const width = sheet ? `${vw - EDGE * 2}px` : '';
   if (pop.style.width !== width) pop.style.width = width;
 
   const popW = pop.offsetWidth, popH = pop.offsetHeight;
+
+  // A step with no target still needs the page dimmed, and a zero-sized
+  // spotlight in the middle of the window does exactly that - the shadow it
+  // casts is the dimming, so there is nothing special to switch on.
+  const rect = el
+    ? targetRect(el, popH)
+    : { top: vh / 2, left: vw / 2, width: 0, height: 0 };
 
   let side, left, top;
 
@@ -285,7 +322,7 @@ function position() {
     }
   }
 
-  const key = [rect.top, rect.left, rect.width, rect.height, left, top, arrowStyle].join(',');
+  const key = [rect.top, rect.left, rect.width, rect.height, left, top, arrowStyle, moving].join(',');
   if (key === lastGeometry) return;
   lastGeometry = key;
 
@@ -296,6 +333,11 @@ function position() {
   // which would otherwise draw a 1.5px dot in the middle of the screen. The
   // element itself stays - it is what is dimming the page.
   light.classList.toggle('tour-no-target', !el);
+
+  // The card holds its ground until the new step is ready for it. Moving it
+  // while it is fading out is the one thing here that would still read as a
+  // slide, since the eye follows a half-visible box perfectly well.
+  if (moving) return;
 
   pop.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
 
@@ -357,21 +399,39 @@ function ensureVisible(el) {
 /**
  * Resolves once a smooth scroll has stopped moving the target.
  *
- * There is no reliable cross-browser event for "the smooth scroll you asked
- * for has finished" - scrollend is recent and Safari does not have it - so
- * this watches the thing that actually matters, the target's position, and
- * calls it settled after two identical frames. The timeout is the backstop for
- * a scroll that never completes because the page could not travel that far.
+ * This decides when the highlight is allowed to open, so calling it a frame
+ * early is exactly the thing that makes one look like it is being dragged
+ * along behind the page.
+ *
+ * scrollend says so precisely and is answered first where it exists. It cannot
+ * be relied on alone: a scrollTo that asks for the position the page is
+ * already at fires nothing at all, and the step would sit dark waiting for an
+ * event that is never coming.
+ *
+ * So the fallback watches the thing that actually matters - where the target
+ * is - and calls it settled after three frames in the identical spot.
+ * Unrounded, deliberately: the tail of an eased scroll creeps along in
+ * fractions of a pixel, which rounding would report as having already stopped.
  */
 function settle(el) {
   return new Promise(resolve => {
-    let last = null, still = 0;
-    const deadline = performance.now() + 700;
+    let done = false, last = null, still = 0;
+    const deadline = performance.now() + 900;
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      document.removeEventListener('scrollend', finish);
+      resolve();
+    };
+    document.addEventListener('scrollend', finish);
+
     const check = () => {
-      const top = Math.round(el.getBoundingClientRect().top);
+      if (done) return;
+      const top = el.getBoundingClientRect().top;
       still = top === last ? still + 1 : 0;
       last = top;
-      if (still >= 2 || performance.now() > deadline) resolve();
+      if (still >= 2 || performance.now() > deadline) finish();
       else requestAnimationFrame(check);
     };
     requestAnimationFrame(check);
@@ -402,6 +462,13 @@ function renderDots() {
  *                      reached, and that can land mid-tour.
  */
 async function showStep(i, dir = 1) {
+  // Clicking Next twice quickly, or holding an arrow key, starts a second run
+  // of this while the first is still waiting on a fade or a scroll. Only the
+  // newest may write anything; the others notice they have been overtaken at
+  // their next await and stop.
+  const token = ++showToken;
+  const pop = $('tour-pop');
+
   let at = clamp(i, 0, steps.length - 1);
   while (steps[at].target && !visible(steps[at].target)) {
     const nextAt = at + dir;
@@ -409,10 +476,23 @@ async function showStep(i, dir = 1) {
     at = nextAt;
   }
 
+  // Lights down. The card fades where it stands and the highlight shuts, so
+  // the page can travel under an even dim with nothing sliding across it.
+  const wasShowing = pop.classList.contains('show');
+  moving = true;
   index = at;
-  const step = steps[index];
-  const pop = $('tour-pop');
+  pop.classList.remove('show');
+  lastGeometry = '';
+  position();
 
+  if (wasShowing) {
+    await wait(reduceMotion() ? 60 : FADE);
+    if (token !== showToken || !running) return;
+  }
+
+  // Written while the card is invisible: the new step's words should never
+  // appear in the old step's place.
+  const step = steps[index];
   $('tour-label').textContent = step.label;
   $('tour-title').textContent = step.title;
   $('tour-body').textContent = step.body;
@@ -421,16 +501,14 @@ async function showStep(i, dir = 1) {
   $('tour-skip').textContent = index === steps.length - 1 ? 'Close' : 'Skip tour';
   renderDots();
 
-  // The card is hidden for the length of the travel and reappears already in
-  // place. Left visible it would fly across the page chasing a moving target,
-  // which is both hard to read and the exact thing that makes these tours feel
-  // cheap.
-  pop.classList.remove('show');
-
   const el = currentTarget();
-  if (el && ensureVisible(el)) await settle(el);
-  if (!running) return;
+  if (el && ensureVisible(el)) {
+    await settle(el);
+    if (token !== showToken || !running) return;
+  }
 
+  // Lights up, on the new target, both at once.
+  moving = false;
   lastGeometry = '';       // force a write even if the numbers happen to match
   position();
   pop.classList.add('show');
@@ -480,6 +558,7 @@ export function startTour() {
   returnFocus = document.activeElement;
   running = true;
   index = 0;
+  moving = false;
   lastGeometry = '';
 
   $('tour').classList.remove('hidden');
@@ -491,6 +570,8 @@ export function startTour() {
 export async function endTour() {
   if (!running) return;
   running = false;
+  moving = false;
+  showToken++;             // strand any step still waiting to appear
   cancelAnimationFrame(frame);
   document.removeEventListener('keydown', onKeydown, true);
 

@@ -571,7 +571,12 @@ textarea::-webkit-scrollbar-thumb:hover,
    can never disagree about where the boundary is - which is the failure mode
    of the usual four-panels-around-a-gap approach when anything animates.
      Positioned with translate rather than top/left so each move is a compositor
-   transform rather than a layout pass; the tour repositions every frame. */
+   transform rather than a layout pass; the tour repositions every frame.
+     Nothing about its position or size is transitioned, and that is the whole
+   point. An eased highlight lags behind every scroll - the page moves, the
+   light follows a third of a second later - and enters each new step by sliding
+   in from wherever it was last. It is glued to its target instead, and steps
+   change by closing the light and opening it again somewhere else. */
 .tour-spotlight {
   position: fixed; top: 0; left: 0;
   border-radius: var(--radius);
@@ -579,17 +584,16 @@ textarea::-webkit-scrollbar-thumb:hover,
   outline: 1.5px solid rgba(124, 156, 255, 0.55);
   outline-offset: -1px;
   pointer-events: none;
-  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-              width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-              height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.2s ease;
+  transition: outline-color 0.22s ease;
 }
 
-/* The opening and closing steps talk about the tool as a whole and light
-   nothing up. The element stays - it is still the thing dimming the page - but
-   collapsed to a point, where an outline would draw a stray dot in the middle
-   of the screen. */
-.tour-spotlight.tour-no-target { outline: none; }
+/* Shut: between steps, and on the opening and closing steps, which talk about
+   the tool as a whole and light nothing up. The element stays either way - it
+   is still the thing dimming the page - but collapses to a point, where an
+   outline would draw a stray dot in the middle of the screen.
+     Only the colour goes, not the outline itself, so the ring can fade up as
+   the light reopens rather than snapping on with the rectangle. */
+.tour-spotlight.tour-no-target { outline-color: transparent; }
 .tour-spotlight.tour-no-target::after { display: none; }
 
 /* A slow breath around the lit element. It is doing the job an arrow would do
@@ -617,14 +621,15 @@ textarea::-webkit-scrollbar-thumb:hover,
   border-radius: var(--radius);
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
 
-  /* Hidden between steps rather than flown across the page - see tour.js. The
-     scale is small on purpose: enough to read as the card arriving, not enough
-     to look like it bounced. */
+  /* Hidden between steps rather than flown across the page - see tour.js. It
+     fades out where it stands, the page travels, and it fades back in already
+     in its new place, so it never appears to move at all.
+       The duration is mirrored by FADE in tour.js, which waits for it. */
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+  transition: opacity 0.15s ease, visibility 0s linear 0.15s;
 }
-.tour-pop.show { opacity: 1; visibility: visible; transition: opacity 0.2s ease, visibility 0s; }
+.tour-pop.show { opacity: 1; visibility: visible; transition: opacity 0.15s ease, visibility 0s; }
 .tour-pop:focus { outline: none; }
 
 .tour-label {
@@ -674,10 +679,10 @@ textarea::-webkit-scrollbar-thumb:hover,
 .tour-nav { display: flex; gap: 7px; margin-left: auto; }
 
 @media (prefers-reduced-motion: reduce) {
-  .tour-spotlight { transition: opacity 0.15s ease; }
+  .tour-spotlight { transition: none; }
   .tour-spotlight::after { animation: none; opacity: 1; }
-  .tour-pop { transition: opacity 0.12s ease, visibility 0s linear 0.12s; }
-  .tour-pop.show { transition: opacity 0.12s ease, visibility 0s; }
+  .tour-pop { transition: opacity 0.06s ease, visibility 0s linear 0.06s; }
+  .tour-pop.show { transition: opacity 0.06s ease, visibility 0s; }
 }
 
 /* =========================================================================
