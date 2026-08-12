@@ -54,7 +54,7 @@ const STEPS = [
     place: 'bottom',
     label: 'Step 1',
     title: 'Find characters you like',
-    body: 'Open any of these three sites and browse for any desired characters, then copy '
+    body: 'Open any of these three sites and browse for any characters, then copy '
         + 'the address (URL) out of your browser’s address bar at the top of your screen.',
   },
   {
