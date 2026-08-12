@@ -693,7 +693,7 @@ function renderBulkSource() {
   el.classList.remove('hidden');
   el.innerHTML = urlList
     ? `Currently showing <strong>${items.length}</strong> pasted link(s)`
-    : `Currently showing this URL: <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
+    : `Currently showing card(s) from: <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
 
   // A page of search results is a shelf, not an order - nothing below it is
   // converted until it is picked. Pasted links arrive already ticked, so the
