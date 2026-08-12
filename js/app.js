@@ -12,6 +12,7 @@ import {
   saveCard, getCard, deleteCard, clearCards, countCards,
   listCardsLight, getSetting, setSetting,
 } from './db.js';
+import { maybeStartTour } from './tour.js';
 
 const $ = id => document.getElementById(id);
 
@@ -414,7 +415,7 @@ async function convertSingle(raw, adapter) {
     // Only the name here. The counts of greetings and gallery images are worth
     // reading, but not in something that is gone in under three seconds - they
     // stay in the status line for as long as anyone wants them.
-    showSuccessToast(`Converted "${character.name}"`);
+    showToast(`Converted "${character.name}"`);
     scrollToResults();
   } catch (err) {
     setStatus(status, describeError(err), 'error');
@@ -865,18 +866,17 @@ $('bulk-convert').addEventListener('click', async () => {
   // Something has to have arrived for there to be anything to scroll to. A run
   // where every card failed leaves the person where they are, next to the grid
   // they picked from and the red status line explaining it.
-  //   A partial run still counts as a landing, but it says so: the toast gives
-  // the figure rather than a bare "done", and the failures stay above in the
-  // status line where they can be read at leisure.
+  //   A partial run still counts as a landing, but it says so twice over: amber
+  // rather than green, and the figure rather than a bare "done". The failures
+  // stay above in the status line where they can be read at leisure.
   if (done) {
-    showSuccessToast(failed
-      ? `${done} of ${chosen.length} cards converted`
-      : `${done} card${done > 1 ? 's' : ''} converted`);
+    if (failed) showToast(`${done} of ${chosen.length} cards converted`, 'warn');
+    else        showToast(`${done} card${done > 1 ? 's' : ''} converted`);
     scrollToResults();
   }
 });
 
-/* ---------------- success feedback ---------------- */
+/* ---------------- conversion feedback ---------------- */
 
 // A conversion is started at the top of the page and lands at the bottom of it,
 // and on a phone those are a screen or more apart - the old behaviour left the
@@ -888,19 +888,23 @@ $('bulk-convert').addEventListener('click', async () => {
 // the top and is exactly the thing being scrolled away from.
 let toastTimer = null;
 
-function showSuccessToast(message) {
+// kind is 'ok' for a clean run or 'warn' for one that lost cards along the way.
+function showToast(message, kind = 'ok') {
   const toast = $('success-toast');
 
   // Cancel the previous run first - two conversions in quick succession would
   // otherwise leave the older timer to hide the newer message early.
   clearTimeout(toastTimer);
 
-  // Shown before the text is written, which looks backwards but is not: a live
-  // region that changes while it is still visibility:hidden goes unannounced by
-  // several screen readers. Nothing is painted between these two lines - the
-  // browser renders once the function has returned - so there is no flash of
-  // the previous message.
-  toast.classList.add('show');
+  // Rebuilt rather than toggled, so a green run following an amber one cannot
+  // inherit the colour of the one before it.
+  toast.className = `toast show${kind === 'warn' ? ' warn' : ''}`;
+
+  // The text is written after the class, which looks backwards but is not: a
+  // live region that changes while it is still visibility:hidden goes
+  // unannounced by several screen readers. Nothing is painted between these two
+  // lines - the browser renders once the function has returned - so there is no
+  // flash of the previous message.
   toast.textContent = message;
   toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
 }
@@ -1034,5 +1038,12 @@ $('clear-all').addEventListener('click', async () => {
   // the proxy, so neither should wait on the other. The proxy check in
   // particular can sit for a minute against a sleeping service.
   loadDiscover();
+
+  // After loadDiscover, which lays out its placeholder tiles before its first
+  // await - so the step about the grid has a grid to point at even though
+  // nothing has arrived in it yet. Not awaited either: a first-time visitor
+  // should meet the tour while the proxy is still waking up, not after.
+  maybeStartTour();
+
   await refreshProxyStatus();
 })();

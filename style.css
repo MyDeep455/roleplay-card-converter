@@ -511,6 +511,16 @@ textarea::-webkit-scrollbar-thumb:hover,
   transition: opacity 0.22s ease, transform 0.22s ease, visibility 0s;
 }
 
+/* A run where some cards failed still ends up here - cards did arrive, and the
+   page still travels to them - but green would be claiming more than happened.
+   Amber is the same signal the proxy pill uses for a working-but-degraded
+   state, and it is the colour that makes someone read the count instead of
+   taking the word for it. The detail of what failed is in the status line. */
+.toast.warn {
+  color: var(--warn);
+  border-color: rgba(224, 181, 82, 0.45);
+}
+
 /* The toast is meant to be readable during a moving scroll; for someone who has
    asked for less motion that scroll is a jump, so the toast simply appears and
    leaves without travelling. */
@@ -542,6 +552,134 @@ textarea::-webkit-scrollbar-thumb:hover,
 .token-field label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 3px; }
 .token-field .hint { font-size: 0.78rem; margin-bottom: 5px; }
 
+/* ---------------- guided tour ---------------- */
+
+/* Above the modals rather than beside them: the tour can be started while the
+   page is otherwise idle, and if anything ever did overlap it, the thing
+   explaining the page should be the thing on top. */
+.tour { position: fixed; inset: 0; z-index: 200; }
+
+/* Catches clicks so the page underneath stays untouched while the tour is up.
+   Deliberately transparent - the darkening is the spotlight's shadow, and
+   stacking a second dark layer on top of it would double the tint. */
+.tour-scrim { position: absolute; inset: 0; }
+
+/* The hole in the dark, and the dark itself.
+     The 9999px shadow is what dims the page: it spreads outward from this
+   rectangle in every direction, far enough to cover any window, and stops
+   exactly at the rectangle's edge. One element, so the lit area and the shade
+   can never disagree about where the boundary is - which is the failure mode
+   of the usual four-panels-around-a-gap approach when anything animates.
+     Positioned with translate rather than top/left so each move is a compositor
+   transform rather than a layout pass; the tour repositions every frame. */
+.tour-spotlight {
+  position: fixed; top: 0; left: 0;
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 9999px rgba(8, 9, 12, 0.74);
+  outline: 1.5px solid rgba(124, 156, 255, 0.55);
+  outline-offset: -1px;
+  pointer-events: none;
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s ease;
+}
+
+/* The opening and closing steps talk about the tool as a whole and light
+   nothing up. The element stays - it is still the thing dimming the page - but
+   collapsed to a point, where an outline would draw a stray dot in the middle
+   of the screen. */
+.tour-spotlight.tour-no-target { outline: none; }
+.tour-spotlight.tour-no-target::after { display: none; }
+
+/* A slow breath around the lit element. It is doing the job an arrow would do
+   on a printed diagram - saying "this one" - so it is deliberately faint and
+   slow enough to read as light rather than as an alert. */
+.tour-spotlight::after {
+  content: '';
+  position: absolute; inset: -3px;
+  border-radius: calc(var(--radius) + 3px);
+  box-shadow: 0 0 0 3px rgba(124, 156, 255, 0.18);
+  animation: tour-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes tour-breathe {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+
+.tour-pop {
+  position: fixed; top: 0; left: 0;
+  width: min(370px, calc(100vw - 24px));
+  padding: 17px 19px 15px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
+
+  /* Hidden between steps rather than flown across the page - see tour.js. The
+     scale is small on purpose: enough to read as the card arriving, not enough
+     to look like it bounced. */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+}
+.tour-pop.show { opacity: 1; visibility: visible; transition: opacity 0.2s ease, visibility 0s; }
+.tour-pop:focus { outline: none; }
+
+.tour-label {
+  margin: 0 0 5px;
+  color: var(--accent);
+  font-size: 0.7rem; font-weight: 700;
+  letter-spacing: 0.09em; text-transform: uppercase;
+}
+.tour-pop h2 { font-size: 1rem; margin: 0 0 7px; padding-right: 18px; }
+.tour-body { margin: 0; color: var(--text-dim); font-size: 0.87rem; }
+
+/* A square stood on its corner, with the two far sides' borders removed so the
+   remaining two continue the card's own outline into a point. Which two depends
+   on the side the card ended up on, which only JavaScript knows. */
+.tour-arrow {
+  position: absolute;
+  width: 12px; height: 12px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  transform: rotate(45deg);
+}
+.tour-arrow-up    { border-right-color: transparent; border-bottom-color: transparent; }
+.tour-arrow-down  { border-left-color: transparent;  border-top-color: transparent; }
+.tour-arrow-left  { border-right-color: transparent; border-top-color: transparent; }
+.tour-arrow-right { border-left-color: transparent;  border-bottom-color: transparent; }
+
+.tour-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.tour-dots { display: flex; align-items: center; gap: 6px; }
+
+/* Buttons, not decorations: eight steps is enough that someone who wants the
+   download one again should be able to jump straight back to it. */
+.tour-dot {
+  width: 7px; height: 7px; padding: 0;
+  border: none; border-radius: 50%;
+  background: var(--border-strong);
+  cursor: pointer;
+  transition: background 0.18s, transform 0.18s;
+}
+.tour-dot:hover { background: var(--text-faint); }
+.tour-dot.on { background: var(--accent); transform: scale(1.35); }
+
+.tour-nav { display: flex; gap: 7px; margin-left: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-spotlight { transition: opacity 0.15s ease; }
+  .tour-spotlight::after { animation: none; opacity: 1; }
+  .tour-pop { transition: opacity 0.12s ease, visibility 0s linear 0.12s; }
+  .tour-pop.show { transition: opacity 0.12s ease, visibility 0s; }
+}
+
 /* =========================================================================
    PHONES
    -------------------------------------------------------------------------
@@ -567,12 +705,16 @@ textarea::-webkit-scrollbar-thumb:hover,
   .brand h1 { font-size: 1.12rem; }
   .brand .sub { font-size: 0.8rem; line-height: 1.4; }
 
-  .topbar-actions { width: 100%; gap: 8px; }
-  /* The pill absorbs the leftover width so both controls come out the same
+  /* Wraps because the row now carries three things: on the narrowest screens
+     the pill drops to a line of its own rather than squeezing the two buttons
+     beside it down to their ellipses. */
+  .topbar-actions { width: 100%; gap: 8px; flex-wrap: wrap; }
+  /* The pill absorbs the leftover width so all three controls come out the same
      height, tall enough to hit, instead of a thumb-sized button sitting beside
      a hairline one. */
-  #proxy-status { flex: 1 1 auto; justify-content: center; padding: 10px 14px; font-size: 0.84rem; }
-  #settings-btn { flex: 0 0 auto; padding: 10px 18px; }
+  #proxy-status { flex: 1 1 140px; justify-content: center; padding: 10px 14px; font-size: 0.84rem; }
+  #tour-btn     { flex: 0 0 auto; padding: 10px 14px; }
+  #settings-btn { flex: 0 0 auto; padding: 10px 16px; }
 
   /* ---------------- layout ---------------- */
 
@@ -795,6 +937,28 @@ textarea::-webkit-scrollbar-thumb:hover,
 
   .token-field label { font-size: 0.9rem; }
   .token-field .hint { font-size: 0.85rem; }
+
+  /* ---------------- guided tour ---------------- */
+
+  /* No room to stand a card beside anything on a phone, so it docks to the top
+     or bottom edge instead - whichever is further from the lit element - and
+     spans the width. tour.js decides which edge and sets the width; what is
+     left here is the shape of a sheet rather than of a bubble.
+       The pointer goes with it: an arrow from the bottom of the screen to
+     something in the middle of it points at nothing in particular. */
+  .tour-pop { width: auto; padding: 16px 16px 14px; }
+  .tour-arrow { display: none; }
+
+  .tour-pop h2 { font-size: 1.02rem; }
+  .tour-body { font-size: 0.9rem; }
+
+  /* Full-width buttons on their own row, in reach of a thumb, with the dots
+     above them as a progress read rather than a target. */
+  .tour-foot { gap: 12px; margin-top: 14px; }
+  .tour-dots { width: 100%; justify-content: center; }
+  .tour-dot { width: 8px; height: 8px; }
+  .tour-nav { width: 100%; margin-left: 0; gap: 8px; }
+  .tour-nav .btn { flex: 1 1 0; padding: 11px 8px; font-size: 0.85rem; }
 }
 
 /* Narrow phones - 320 to 360px. Only the padding and the widest labels need

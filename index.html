@@ -21,6 +21,7 @@
     <button id="proxy-status" class="pill pill-unknown" title="Click to re-check the local proxy">
       <span class="dot"></span><span id="proxy-status-text">Checking proxy&hellip;</span>
     </button>
+    <button id="tour-btn" class="btn btn-ghost" title="Replay the quick walkthrough">Tour</button>
     <button id="settings-btn" class="btn btn-ghost">Settings</button>
   </div>
 </header>
@@ -194,6 +195,37 @@
      good news, and should wait its turn rather than interrupt a screen reader
      mid-sentence. -->
 <div id="success-toast" class="toast" role="status" aria-live="polite"></div>
+
+<!-- ============================ TOUR ============================ -->
+<!-- The first-visit walkthrough. Empty on purpose - every word in it comes
+     from the step list in js/tour.js, and the highlight is positioned from
+     whatever element the current step names, so there is nothing here but the
+     shell it all gets written into.
+       The spotlight is the piece that dims the page: it casts a very large
+     shadow outward, so the lit rectangle and the darkness around it are one
+     object and cannot come apart. -->
+<div id="tour" class="tour hidden" role="dialog" aria-modal="true" aria-labelledby="tour-title">
+  <div id="tour-scrim" class="tour-scrim"></div>
+  <div id="tour-spotlight" class="tour-spotlight"></div>
+
+  <div id="tour-pop" class="tour-pop" tabindex="-1">
+    <div id="tour-arrow" class="tour-arrow" hidden></div>
+    <button id="tour-close" class="notice-close" aria-label="Close tour">&times;</button>
+
+    <p id="tour-label" class="tour-label"></p>
+    <h2 id="tour-title"></h2>
+    <p id="tour-body" class="tour-body"></p>
+
+    <div class="tour-foot">
+      <div id="tour-dots" class="tour-dots"></div>
+      <div class="tour-nav">
+        <button id="tour-skip" class="btn btn-ghost btn-small">Skip tour</button>
+        <button id="tour-back" class="btn btn-small">Back</button>
+        <button id="tour-next" class="btn btn-primary btn-small">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script type="module" src="js/app.js"></script>
 </body>
