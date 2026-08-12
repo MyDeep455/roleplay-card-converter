@@ -749,7 +749,7 @@ export function adapterForUrl(rawUrl) {
   if (!found) {
     throw new Error(
       `${u.hostname} is not supported - this tool handles chub.ai, character-tavern.com and ` +
-      `janitorai.com. Cards from elsewhere can be imported straight into Casual Character Chat instead.`
+      `janitorai.com. Character Cards (V2 PNG/JSON) from other platforms can often be downloaded directly from there. You can then import them directly into Casual Character Chat.`
     );
   }
   return { adapter: found, url: u };
