@@ -88,14 +88,14 @@ const STEPS = [
     label: 'Step 4',
     title: 'Download, then import. Finished!',
     body: 'Converted cards stay here in your browser until you clear them. '
-        + 'Simply load them into Casual Character Chat with the “Import Data” button of the app.',
+        + 'Simply load them into Casual Character Chat with the “Import Data” button.',
   },
   {
     target: null,
     place: 'center',
     label: 'Ready',
     title: 'That’s the whole loop',
-    body: 'Copy any link → convert it → download it → import it. '
+    body: 'Copy any card link → convert → download → import. '
         + 'You can replay this tour any time from the Tour button up top.',
   },
 ];
