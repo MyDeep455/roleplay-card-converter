@@ -701,7 +701,7 @@ function renderBulkSource() {
   hint.classList.remove('hidden');
   hint.innerHTML = urlList
     ? 'All selected &rarr; untick any you don\'t want &rarr; click "Convert selected"'
-    : 'Select the characters you want &rarr; click "Convert selected" to convert and download them';
+    : 'Select characters &rarr; Convert & Download &rarr; Import to Casual Character Chat';
 }
 
 function renderBulkGrid() {
