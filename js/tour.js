@@ -95,7 +95,7 @@ const STEPS = [
     place: 'center',
     label: 'Ready',
     title: 'That’s the whole loop',
-    body: 'Copy any link → convert → download → import.  '
+    body: 'Copy any link → convert it → download → import.  '
         + 'You can replay this tour any time from the Tour button up top.',
   },
 ];
