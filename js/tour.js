@@ -45,7 +45,7 @@ const STEPS = [
     place: 'center',
     label: 'Welcome',
     title: 'Grab characters to chat with!',
-    body: 'Here you can download countless character cards from other platforms for free.'
+    body: 'Here you can download countless character cards from other platforms for free. '
         + 'This tool auto-converts their data and creates a character card for you to use '
         + 'in Casual Character Chat. First conversion might take a minute, then it converts fast.',
   },
@@ -79,8 +79,8 @@ const STEPS = [
     label: 'In bulk',
     title: 'You can download right away!',
     body: 'It is already showing you chub.ai’s trending characters right now — tick the ones you want and convert in one click. '
-        + 'Note: Some platforms (such as chub.ai) block NSFW adult content for users outside the U.S. If you want to see all unfiltered NSFW characters '
-        + 'on those platforms, you’ll need to use a VPN that masks your location to make it appear as if you’re in the U.S.',
+        + 'Note: Some platforms (such as chub.ai) block NSFW adult content for users outside the U.S. '
+        + 'You’ll need to use a VPN (e.g. NordVPN) to see all unfiltered NSFW characters on those platforms.',
   }, 
   {
     target: '.results-head',
