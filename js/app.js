@@ -410,6 +410,12 @@ async function convertSingle(raw, adapter) {
       `Converted "${character.name}"${extras.length ? ' - ' + extras.join(', ') : ''}. See below.`,
       'ok');
     $('url-input').value = '';
+
+    // Only the name here. The counts of greetings and gallery images are worth
+    // reading, but not in something that is gone in under three seconds - they
+    // stay in the status line for as long as anyone wants them.
+    showSuccessToast(`Converted "${character.name}"`);
+    scrollToResults();
   } catch (err) {
     setStatus(status, describeError(err), 'error');
   } finally {
@@ -855,7 +861,58 @@ $('bulk-convert').addEventListener('click', async () => {
     (failures.length ? `\n\nFailures:\n- ${failures.slice(0, 12).join('\n- ')}` : '') +
     (anyRefused ? `\n${REGION_HINT.trim()}` : ''),
     failed ? 'error' : 'ok');
+
+  // Something has to have arrived for there to be anything to scroll to. A run
+  // where every card failed leaves the person where they are, next to the grid
+  // they picked from and the red status line explaining it.
+  //   A partial run still counts as a landing, but it says so: the toast gives
+  // the figure rather than a bare "done", and the failures stay above in the
+  // status line where they can be read at leisure.
+  if (done) {
+    showSuccessToast(failed
+      ? `${done} of ${chosen.length} cards converted`
+      : `${done} card${done > 1 ? 's' : ''} converted`);
+    scrollToResults();
+  }
 });
+
+/* ---------------- success feedback ---------------- */
+
+// A conversion is started at the top of the page and lands at the bottom of it,
+// and on a phone those are a screen or more apart - the old behaviour left the
+// person looking at an unchanged paste box, with the only sign of success a
+// line of text below it saying "see below". So the page goes there itself.
+//   The toast exists because the scroll on its own is ambiguous: the screen
+// moves, but nothing says whether that was a success, a failure, or a page
+// jumping around. It is deliberately not put in the status line, which is up at
+// the top and is exactly the thing being scrolled away from.
+let toastTimer = null;
+
+function showSuccessToast(message) {
+  const toast = $('success-toast');
+
+  // Cancel the previous run first - two conversions in quick succession would
+  // otherwise leave the older timer to hide the newer message early.
+  clearTimeout(toastTimer);
+
+  // Shown before the text is written, which looks backwards but is not: a live
+  // region that changes while it is still visibility:hidden goes unannounced by
+  // several screen readers. Nothing is painted between these two lines - the
+  // browser renders once the function has returned - so there is no flash of
+  // the previous message.
+  toast.classList.add('show');
+  toast.textContent = message;
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+}
+
+function scrollToResults() {
+  // Chrome does not apply the reduced-motion setting to a programmatic smooth
+  // scroll the way it does to the CSS property, so it is checked here rather
+  // than assumed. A long glide is the part of this someone with that setting
+  // turned on is asking not to be given.
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  $('results').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+}
 
 /* ---------------- results ---------------- */
 

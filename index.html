@@ -94,7 +94,7 @@
 </main>
 
 <!-- ============================ RESULTS ============================ -->
-<section class="results">
+<section class="results" id="results">
   <div class="results-head">
     <h2>Converted cards <span id="results-count" class="chip">0</span></h2>
     <div class="results-actions">
@@ -186,6 +186,14 @@
     </div>
   </div>
 </div>
+
+<!-- ============================ TOAST ============================ -->
+<!-- Rides along with the scroll down to the results after a conversion. Last
+     in the body and position:fixed, so it belongs to the viewport rather than
+     to either section it passes over. role="status" (not "alert") - it is the
+     good news, and should wait its turn rather than interrupt a screen reader
+     mid-sentence. -->
+<div id="success-toast" class="toast" role="status" aria-live="polite"></div>
 
 <script type="module" src="js/app.js"></script>
 </body>

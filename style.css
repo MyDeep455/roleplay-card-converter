@@ -461,6 +461,64 @@ textarea::-webkit-scrollbar-thumb:hover,
   border: 1px dashed var(--border); border-radius: var(--radius); margin-top: 14px;
 }
 
+/* ---------------- success toast ---------------- */
+
+/* Shown while the page scrolls itself down to the results. The scroll alone
+   moves the screen without saying why, and the status line it is travelling
+   towards is easy to miss mid-motion, so the confirmation is put somewhere the
+   eye is already resting: fixed to the lower half of the viewport, where it
+   stays put while everything behind it slides past.
+     Below centre rather than at it - the results rows are arriving in the
+   upper two thirds and should not be covered by the thing announcing them.
+     Never takes a click: it sits over the page for a couple of seconds, and
+   the buttons underneath stay live the whole time.
+     It is opacity and visibility rather than the .hidden class because
+   display:none cannot be transitioned - it would snap in and out. */
+.toast {
+  position: fixed;
+  left: 50%;
+  top: 68%;
+  z-index: 120;
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 11px 20px;
+  border-radius: 999px;
+  background: rgba(20, 24, 30, 0.94);
+  border: 1px solid rgba(94, 203, 138, 0.45);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+
+  color: var(--ok);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-align: center;
+  overflow-wrap: anywhere;
+
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  /* Starts a little below its resting place and rises into it, so it reads as
+     arriving rather than blinking on. */
+  transform: translate(-50%, 14px);
+  transition: opacity 0.22s ease, transform 0.22s ease, visibility 0s linear 0.22s;
+}
+
+.toast.show {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, 0);
+  /* Visibility flips at the start of the way in and only at the end of the way
+     out, otherwise the fade-out would have nothing left to fade. */
+  transition: opacity 0.22s ease, transform 0.22s ease, visibility 0s;
+}
+
+/* The toast is meant to be readable during a moving scroll; for someone who has
+   asked for less motion that scroll is a jump, so the toast simply appears and
+   leaves without travelling. */
+@media (prefers-reduced-motion: reduce) {
+  .toast { transform: translate(-50%, 0); transition: opacity 0.15s ease, visibility 0s linear 0.15s; }
+  .toast.show { transition: opacity 0.15s ease, visibility 0s; }
+}
+
 /* ---------------- modals ---------------- */
 
 .modal {
@@ -557,6 +615,12 @@ textarea::-webkit-scrollbar-thumb:hover,
   .hint, .browse-links, .status, .bulk-source { font-size: 0.9rem; }
   .bulk-hint { font-size: 0.92rem; }
   .chip { font-size: 0.8rem; padding: 3px 10px; }
+
+  /* The phone is where the scroll matters most - the results are a full screen
+     down rather than just below the fold. Slightly narrower and a little
+     further down the viewport, clear of the first result rows arriving above
+     it and of the browser chrome that appears along the bottom edge. */
+  .toast { top: 66%; padding: 10px 16px; font-size: 0.88rem; max-width: calc(100vw - 28px); }
 
   /* ---------------- card picker toolbar ---------------- */
 
