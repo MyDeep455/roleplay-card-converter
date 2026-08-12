@@ -80,7 +80,7 @@ const STEPS = [
     title: 'You can download right away!',
     body: 'It is already showing you chub.ai’s trending characters right now — tick the ones you want and convert in one click. '
         + 'Note: Some platforms (such as chub.ai) block NSFW adult content for users outside the U.S. '
-        + 'You’ll need to use a VPN (e.g. NordVPN) to see all unfiltered NSFW characters on those platforms.',
+        + 'You’ll need to use a VPN (e.g. NordVPN) to see all unfiltered NSFW characters there.',
   }, 
   {
     target: '.results-head',
