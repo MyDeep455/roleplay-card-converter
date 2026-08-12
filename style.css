@@ -537,6 +537,16 @@ textarea::-webkit-scrollbar-thumb:hover,
   input[type="url"], input[type="text"], input[type="password"], textarea { font-size: 16px; }
   textarea { line-height: 1.5; }
 
+  /* The 16px above is for text being typed; the placeholder is a different
+     problem. It is six lines of example URLs, and at 16px monospace each of
+     them wraps two or three times over - the box fills up, the last examples
+     fall out of sight below the fold, and what is left reads as a wall. The
+     placeholder is a pseudo-element, so it can be sized on its own: shrinking
+     it here does not touch the field's own font-size and so does not bring the
+     iOS focus-zoom back. Small enough that the longest example line wraps once
+     at most and the whole hint sits inside the box. */
+  #url-input::placeholder { font-size: 0.7rem; line-height: 1.45; }
+
   /* ---------------- buttons and small text ---------------- */
 
   .btn { padding: 11px 16px; }
@@ -732,6 +742,11 @@ textarea::-webkit-scrollbar-thumb:hover,
   .btn-small { padding: 8px; font-size: 0.8rem; }
   .bulk-grid { gap: 8px; }
   .notice { padding-left: 12px; }
+
+  /* Roughly 40 characters less width than the box the size above was picked
+     for, so the example URLs start wrapping again unless it comes down a step
+     with the screen. */
+  #url-input::placeholder { font-size: 0.63rem; }
 }
 
 /* A touch screen has no way to stop hovering: whatever was tapped last keeps
