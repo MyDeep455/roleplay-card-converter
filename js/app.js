@@ -32,6 +32,7 @@ function emptyBulk() {
     sourcePage: 0,         // the last source page pulled in
     sourcePages: 1,        // how many the source says it has
     sourcePageSize: 0,     // items in its first page, for the page-count estimate
+    sourceTotal: 0,        // cards the search has in all, 0 until the site says
     offset: 0,             // index in the feed of the first tile on screen
     items: [],             // the window on screen
     selected: new Set(),   // keys selected in that window
@@ -398,6 +399,7 @@ async function fillFeed(need) {
     b.sourcePage = next;
     b.sourcePages = Math.max(result.totalPages || 1, next);
     if (!b.sourcePageSize) b.sourcePageSize = items.length;
+    if (!b.sourceTotal && result.total) b.sourceTotal = result.total;
 
     const fresh = items.filter(i => !b.keys.has(i.key));
     fresh.forEach(i => b.keys.add(i.key));
@@ -440,7 +442,7 @@ async function stepBulkPage(dir) {
 
     b.offset = at;
     b.selected.clear();          // a tick belongs to the page it was made on
-    setStatus(status, `${Math.min(per, b.feed.length - at)} cards. Tick the ones you want.`, 'ok');
+    setStatus(status, bulkFoundMessage(Math.min(per, b.feed.length - at)), 'ok');
   } catch (err) {
     setStatus(status, describeError(err), 'error');
   } finally {
@@ -497,7 +499,7 @@ async function startMirror(page, sourceUrl = null) {
       return;
     }
     renderBulkGrid();
-    setStatus(status, `${state.bulk.items.length} cards. Tick the ones you want.`, 'ok');
+    setStatus(status, bulkFoundMessage(state.bulk.items.length), 'ok');
   } catch (err) {
     setStatus(status, describeError(err), 'error');
   } finally {
@@ -763,14 +765,36 @@ function renderBulkSource() {
     : 'Select any characters &rarr; Convert & Download &rarr; Import to Casual Character Chat';
 }
 
-// The site counts in its own pages and this grid counts in fours rows, so the
-// total can only be an estimate: what is buffered, plus the pages not asked for
-// yet at the size the first one came back at. Never below the page being looked
-// at, so the label cannot say "Page 5 / 4" on the way through.
-function bulkPageCount(per, page) {
+// How many cards this search has to offer, not how many are on screen - the
+// grid holds four rows of them and the search is usually hundreds deep.
+//
+// Counted as what the site said, capped at what its own page count can actually
+// hold: JanitorAI signed out quotes a library of thousands and then serves one
+// page of it, and the number worth showing is the one that can be converted.
+// Sites that quote nothing are estimated from their pages instead.
+function bulkTotalCards() {
   const b = state.bulk;
+  const reach = b.sourcePages * b.sourcePageSize;
+  if (b.sourceTotal) return reach ? Math.min(b.sourceTotal, reach) : b.sourceTotal;
+
   const unseen = Math.max(0, b.sourcePages - b.sourcePage) * b.sourcePageSize;
-  return Math.max(page, Math.ceil((b.feed.length + unseen) / per) || 1);
+  return b.feed.length + unseen;
+}
+
+// What a search found, not what one screen of it holds: "24 cards" under a grid
+// of 24 reads as the whole result, when it is the first four rows of hundreds.
+function bulkFoundMessage(shown) {
+  const total = bulkTotalCards();
+  return total > shown
+    ? `${total} cards found - ${shown} on this page. Tick the ones you want.`
+    : `${shown} cards. Tick the ones you want.`;
+}
+
+// The site counts in its own pages and this grid counts in four rows, so the
+// figure is recut here. Never below the page being looked at, so the label
+// cannot say "Page 5 / 4" on the way through.
+function bulkPageCount(per, page) {
+  return Math.max(page, Math.ceil(bulkTotalCards() / per) || 1);
 }
 
 function renderBulkGrid() {

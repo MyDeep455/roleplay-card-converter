@@ -6,7 +6,12 @@
  *   matchUrl(url)               does this adapter own the URL?
  *   isLibraryUrl(url)           library/search page rather than a single card?
  *   fetchCard(url, ctx)         one card  -> NormalizedCard
- *   listLibrary(url, page, ctx) a library page -> { items, page, totalPages }
+ *   listLibrary(url, page, ctx) a library page -> { items, page, totalPages, total }
+ *
+ * `total` is how many cards the search has in all, counting only the pages this
+ * adapter can actually reach - JanitorAI signed out serves one page and refuses
+ * the rest, so for it that figure is one page long. Left out when the site does
+ * not say; the caller then estimates from the page size.
  *
  * A library `item` carries only what the mirror needs to draw a tile and fetch
  * the card later: name, tagline, avatar URL, creator. Star counts, download
@@ -244,6 +249,7 @@ const chub = {
       })),
       page,
       totalPages: Math.max(1, Math.ceil(count / pageSize)),
+      total: count,
     };
   },
 };
@@ -404,6 +410,9 @@ const characterTavern = {
       })),
       page: res.page || page,
       totalPages: res.totalPages || 1,
+      // The search index has been through several names for this field, so all
+      // three are tried before falling back to the caller's own estimate.
+      total: res.totalHits ?? res.total ?? res.estimatedTotalHits ?? null,
     };
   },
 };
@@ -672,6 +681,9 @@ const janitorai = {
       // Signed out every page after the first is a 401, so offering tens of
       // thousands of them would be offering a wall.
       totalPages: token ? Math.max(1, Math.ceil(total / size)) : 1,
+      // And for the same reason the count signed out is this page, not the
+      // figure the API quotes for a library it will not hand over.
+      total: token ? total : nodes.length,
     };
   },
 
