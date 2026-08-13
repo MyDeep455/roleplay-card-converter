@@ -16,17 +16,32 @@ import { maybeStartTour } from './tour.js';
 
 const $ = id => document.getElementById(id);
 
-const state = {
-  tokens: {},          // adapterId -> token
-  bulk: {
+// The picker holds a feed rather than one library page. The site's page size is
+// whatever the site says - 24 on chub, 34 on JanitorAI - and none of them is the
+// number of tiles four rows of this grid can hold, so pages are pulled in and
+// handed out in windows of that size instead. See emptyBulk.
+function emptyBulk() {
+  return {
     adapter: null,
     url: '',
-    page: 1,
-    totalPages: 1,
-    items: [],
-    selected: new Set(),   // keys selected on the current page
+    feed: [],              // every item pulled from the source so far, in order
+    keys: new Set(),       // what is already in the feed, so a page that repeats
+                           // an item (trending re-orders between calls) cannot
+                           // put it in the grid twice
+    startPage: 1,          // the source page the feed began at
+    sourcePage: 0,         // the last source page pulled in
+    sourcePages: 1,        // how many the source says it has
+    sourcePageSize: 0,     // items in its first page, for the page-count estimate
+    offset: 0,             // index in the feed of the first tile on screen
+    items: [],             // the window on screen
+    selected: new Set(),   // keys selected in that window
     urlList: null,         // set when the user pasted individual card URLs
-  },
+  };
+}
+
+const state = {
+  tokens: {},          // adapterId -> token
+  bulk: emptyBulk(),
   cancelBulk: false,
 };
 
@@ -43,7 +58,7 @@ function setStatus(el, message, kind = '') {
 // answered and said no; a mistyped URL gets no such excuse.
 const REGION_HINT =
   ' If you can open it on the site itself, your connection is being shown a filtered library here - ' +
-  'see "Missing characters?" below.';
+  'a VPN set to the USA is the usual fix.';
 
 function describeError(err) {
   const msg = err?.message || String(err);
@@ -97,7 +112,14 @@ function isPartial(character) {
   return !hasGreeting || body.length < 40;
 }
 
-/* ---------------- the "partial card" notice ---------------- */
+/* ---------------- the JanitorAI notices ---------------- */
+
+// Both notices that offer a way out of a logged-out JanitorAI say the same two
+// things, so the words live in one <template> and are stamped into each of them
+// here rather than being kept in step by hand.
+document.querySelectorAll('.jai-fix').forEach(slot => {
+  slot.appendChild($('jai-fix-tpl').content.cloneNode(true));
+});
 
 // JanitorAI only, because the notice's two remedies are JanitorAI's. A stub
 // card off chub.ai is partial in exactly the same way and still gets its badge,
@@ -255,9 +277,10 @@ $('settings-save').addEventListener('click', async () => {
   await setSetting('tokens', state.tokens);
   $('settings-modal').classList.add('hidden');
 
-  // One of the two things the notice asks for. Leaving it up after it has been
-  // acted on would read as "that did not work".
+  // One of the two things the notices ask for. Leaving them up after that has
+  // been acted on would read as "that did not work".
   if (state.tokens.janitorai) $('partial-notice').classList.add('hidden');
+  updateJaiInfo();
 });
 
 /* =========================================================================
@@ -354,11 +377,76 @@ function pageFromUrl(raw) {
   }
 }
 
-// Paging re-runs the search that is already loaded rather than re-reading the
-// box, so editing the text without pressing Convert cannot send you to a page
-// of something else.
-$('bulk-prev').addEventListener('click', () => startMirror(Math.max(1, state.bulk.page - 1), state.bulk.url));
-$('bulk-next').addEventListener('click', () => startMirror(state.bulk.page + 1, state.bulk.url));
+// Pulls source pages into the feed until it holds `need` items or the source
+// runs out. One press of Next can therefore cost a request, two, or none at
+// all, depending on how the site's page size happens to divide.
+async function fillFeed(need) {
+  const b = state.bulk;
+
+  while (b.feed.length < need && b.sourcePage < b.sourcePages) {
+    const next = b.sourcePage + 1;
+    const result = await b.adapter.listLibrary(b.url, next, {
+      token: state.tokens[b.adapter.id] || null,
+    });
+
+    // Something else took the grid over while this was in flight - a pasted
+    // link, a cleared page. Whatever it was, it is now what the person asked
+    // for, and this reply belongs to a question they have moved on from.
+    if (state.bulk !== b) return;
+
+    const items = result.items || [];
+    b.sourcePage = next;
+    b.sourcePages = Math.max(result.totalPages || 1, next);
+    if (!b.sourcePageSize) b.sourcePageSize = items.length;
+
+    const fresh = items.filter(i => !b.keys.has(i.key));
+    fresh.forEach(i => b.keys.add(i.key));
+    b.feed.push(...fresh);
+
+    if (!items.length) {
+      b.sourcePages = next;      // an empty page is the end, whatever it claimed
+      break;
+    }
+  }
+}
+
+// Paging walks the feed rather than re-running the search, so editing the text
+// without pressing Convert cannot send you to a page of something else, and
+// stepping back costs nothing - those items are already here.
+$('bulk-prev').addEventListener('click', () => stepBulkPage(-1));
+$('bulk-next').addEventListener('click', () => stepBulkPage(1));
+
+async function stepBulkPage(dir) {
+  const b = state.bulk;
+  if (b.urlList || !b.adapter) return;
+
+  const per = tilesPerPage();
+  const at = Math.max(0, b.offset + dir * per);
+  const status = $('bulk-status');
+
+  // Both buttons go dead for the duration. A second press while a page is on
+  // its way would leave two fills racing for the same place in the feed, and
+  // the loser's cards would simply not be there.
+  $('bulk-prev').disabled = true;
+  $('bulk-next').disabled = true;
+
+  try {
+    if (dir > 0 && b.feed.length < at + per && b.sourcePage < b.sourcePages) {
+      setStatus(status, `Mirroring more of ${b.adapter.label}...`, 'busy');
+      await fillFeed(at + per);
+      if (state.bulk !== b) return;
+    }
+    if (at >= b.feed.length) return setStatus(status, 'That was the last page.', '');
+
+    b.offset = at;
+    b.selected.clear();          // a tick belongs to the page it was made on
+    setStatus(status, `${Math.min(per, b.feed.length - at)} cards. Tick the ones you want.`, 'ok');
+  } catch (err) {
+    setStatus(status, describeError(err), 'error');
+  } finally {
+    if (state.bulk === b) renderBulkGrid();
+  }
+}
 
 async function startMirror(page, sourceUrl = null) {
   const status = $('bulk-status');
@@ -380,24 +468,36 @@ async function startMirror(page, sourceUrl = null) {
     );
     $('convert-btn').disabled = true;
 
-    const result = await adapter.listLibrary(raw, page, { token: state.tokens[adapter.id] || null });
-
     avatarGeneration++;          // a mirrored page carries its own thumbnails
-    state.bulk = {
-      adapter, url: raw, page,
-      totalPages: result.totalPages || 1,
-      items: result.items || [],
-      selected: new Set(),
-      urlList: null,
-    };
 
-    if (!state.bulk.items.length) {
+    // The feed has to be in place before it can be filled, so a search that
+    // then fails would leave the grid showing one library and the tool holding
+    // another - tiles that tick but convert nothing. On failure the previous
+    // one goes back, and the tiles on screen are its own again.
+    const previous = state.bulk;
+    const mine = { ...emptyBulk(),
+      adapter, url: raw,
+      startPage: page,
+      sourcePage: page - 1,      // nothing pulled in yet; the fill starts here
+      sourcePages: page,         // raised to the real figure by the first reply
+    };
+    state.bulk = mine;
+
+    try {
+      await fillFeed(tilesPerPage());
+    } catch (err) {
+      if (state.bulk === mine) state.bulk = previous;
+      throw err;
+    }
+    if (state.bulk !== mine) return;
+
+    if (!state.bulk.feed.length) {
       setStatus(status, 'That library page returned no cards.', 'error');
       renderBulkGrid();
       return;
     }
-    setStatus(status, `${state.bulk.items.length} cards on page ${page}. Tick the ones you want.`, 'ok');
     renderBulkGrid();
+    setStatus(status, `${state.bulk.items.length} cards. Tick the ones you want.`, 'ok');
   } catch (err) {
     setStatus(status, describeError(err), 'error');
   } finally {
@@ -464,7 +564,7 @@ function loadUrlList(lines, status) {
   }
 
   state.bulk = {
-    adapter: null, url: '', page: 1, totalPages: 1,
+    ...emptyBulk(),
     items, selected: new Set(items.map(i => i.key)), urlList: true,
   };
   renderBulkGrid();
@@ -534,6 +634,49 @@ const DISCOVER_URL = 'https://chub.ai/characters?sort=trending';
 // mattering - a late reply must not replace what they actually asked for.
 let discoverSuperseded = false;
 
+/* ---------------- the shape of the grid ---------------- */
+
+// Four complete rows, always. A last row with three tiles in it looks like the
+// end of the collection, which - with pages still to come - is the one thing it
+// must not say. Everything else here follows from that: the window handed to
+// the grid is sized to fill it, and the feed above buffers whatever page size
+// the site happens to use.
+const GRID_ROWS = 4;
+
+// A wide screen fits seven tracks, and seven would put every chub page - 24
+// cards - one row short of four, so each page would cost a second request to
+// finish the grid. Six divides it exactly, and the tiles are larger for it.
+const GRID_MAX_COLS = 6;
+
+// Asked of the stylesheet rather than worked out from the width, so the two
+// cannot disagree: the media queries fix the count on phones, and this reads
+// back whatever they settled on.
+function gridColumns() {
+  const grid = $('bulk-grid');
+  grid.style.gridTemplateColumns = '';
+  const laid = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
+  const cols = Math.max(1, Math.min(laid, GRID_MAX_COLS));
+  if (cols < laid) grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+  return cols;
+}
+
+function tilesPerPage() {
+  return gridColumns() * GRID_ROWS;
+}
+
+// A window narrowed from six columns to four holds fewer tiles, so the page on
+// screen has to be re-cut - and may need more of the feed than has been fetched.
+let resizeTimer = 0;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(async () => {
+    const b = state.bulk;
+    if (b.urlList || !b.feed.length) return;
+    try { await fillFeed(b.offset + tilesPerPage()); } catch { /* keep what is here */ }
+    if (state.bulk === b) renderBulkGrid();
+  }, 200);
+});
+
 function renderSkeletons(n) {
   const grid = $('bulk-grid');
   grid.innerHTML = '';
@@ -557,22 +700,18 @@ async function loadDiscover() {
   // Skeleton tiles rather than a line of text: the shape of what is coming is
   // the part worth showing, so the wait reads as a collection loading rather
   // than as an empty page that might stay empty.
-  renderSkeletons(12);
+  renderSkeletons(tilesPerPage());
   setStatus(status, 'Loading trending characters from chub.ai...', 'busy');
 
   try {
     const { adapter } = adapterForUrl(DISCOVER_URL);
-    const result = await adapter.listLibrary(DISCOVER_URL, 1, {});
-    if (discoverSuperseded) return;
 
-    const items = result.items || [];
-    if (!items.length) throw new Error('no cards returned');
+    state.bulk = { ...emptyBulk(), adapter, url: DISCOVER_URL };
+    const mine = state.bulk;
+    await fillFeed(tilesPerPage());
+    if (discoverSuperseded || state.bulk !== mine) return;
 
-    state.bulk = {
-      adapter, url: DISCOVER_URL, page: 1,
-      totalPages: result.totalPages || 1,
-      items, selected: new Set(), urlList: null,
-    };
+    if (!state.bulk.feed.length) throw new Error('no cards returned');
     renderBulkGrid();
 
     // The source line under the box already names what these are and links to
@@ -590,10 +729,7 @@ async function loadDiscover() {
 
 function clearBulkGrid() {
   avatarGeneration++;            // abandon any thumbnails still being looked up
-  state.bulk = {
-    adapter: null, url: '', page: 1, totalPages: 1,
-    items: [], selected: new Set(), urlList: null,
-  };
+  state.bulk = emptyBulk();
   renderBulkGrid();
 }
 
@@ -627,23 +763,41 @@ function renderBulkSource() {
     : 'Select any characters &rarr; Convert & Download &rarr; Import to Casual Character Chat';
 }
 
+// The site counts in its own pages and this grid counts in fours rows, so the
+// total can only be an estimate: what is buffered, plus the pages not asked for
+// yet at the size the first one came back at. Never below the page being looked
+// at, so the label cannot say "Page 5 / 4" on the way through.
+function bulkPageCount(per, page) {
+  const b = state.bulk;
+  const unseen = Math.max(0, b.sourcePages - b.sourcePage) * b.sourcePageSize;
+  return Math.max(page, Math.ceil((b.feed.length + unseen) / per) || 1);
+}
+
 function renderBulkGrid() {
   const grid = $('bulk-grid');
   const toolbar = $('bulk-toolbar');
+  const b = state.bulk;
+
+  // Pasted links are a list, not a library: there is no page after them, so all
+  // of them are shown - windowing that would hide links someone chose by hand.
+  const per = tilesPerPage();
+  if (!b.urlList) b.items = b.feed.slice(b.offset, b.offset + per);
+
   grid.innerHTML = '';
   renderBulkSource();
+  updateJaiInfo();
 
-  if (!state.bulk.items.length) {
+  if (!b.items.length) {
     toolbar.classList.add('hidden');
     return;
   }
   toolbar.classList.remove('hidden');
 
-  $('bulk-page').textContent = state.bulk.urlList
-    ? `${state.bulk.items.length} URLs`
-    : `Page ${state.bulk.page} / ${state.bulk.totalPages}`;
-  $('bulk-prev').disabled = state.bulk.urlList || state.bulk.page <= 1;
-  $('bulk-next').disabled = state.bulk.urlList || state.bulk.page >= state.bulk.totalPages;
+  const page = Math.floor(b.offset / per) + 1;
+  $('bulk-page').textContent = b.urlList ? `${b.items.length} URLs` : `Page ${page} / ${bulkPageCount(per, page)}`;
+  $('bulk-prev').disabled = b.urlList || b.offset === 0;
+  $('bulk-next').disabled = b.urlList ||
+    (b.offset + per >= b.feed.length && b.sourcePage >= b.sourcePages);
 
   state.bulk.items.forEach(item => {
     const card = document.createElement('div');
@@ -899,21 +1053,32 @@ async function renderResults() {
   });
 }
 
-/* ---------------- region notice ---------------- */
+/* ---------------- the "Missing characters?" notice ---------------- */
 
-// Kept behind a button rather than shown on arrival: it only matters to people
-// in the affected regions, and a standing warning about content nobody has
-// asked for yet would be noise for everyone else.
-function toggleRegionInfo(show) {
-  const panel = $('region-info');
+// Kept behind a button rather than shown on arrival: the grid is still useful
+// as it stands, and an explanation nobody asked for above every result would be
+// noise. The button itself is only there when the sentence behind it is true -
+// JanitorAI results, no token - so it never sends anyone looking for a problem
+// they do not have.
+function updateJaiInfo() {
+  const b = state.bulk;
+  const show = !state.tokens.janitorai && !b.urlList &&
+    b.adapter?.id === 'janitorai' && b.items.length > 0;
+
+  $('jai-info-wrap').classList.toggle('hidden', !show);
+  if (!show) toggleJaiInfo(false);
+}
+
+function toggleJaiInfo(show) {
+  const panel = $('jai-info');
   const open = show ?? panel.classList.contains('hidden');
   panel.classList.toggle('hidden', !open);
-  $('region-info-btn').setAttribute('aria-expanded', String(open));
+  $('jai-info-btn').setAttribute('aria-expanded', String(open));
   if (open) panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
-$('region-info-btn').addEventListener('click', () => toggleRegionInfo());
-$('region-info-close').addEventListener('click', () => toggleRegionInfo(false));
+$('jai-info-btn').addEventListener('click', () => toggleJaiInfo());
+$('jai-info-close').addEventListener('click', () => toggleJaiInfo(false));
 
 $('download-all').addEventListener('click', async () => {
   const rows = await listCardsLight();

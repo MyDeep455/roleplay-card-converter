@@ -51,6 +51,11 @@ You get a plain grid — avatar, name, tagline, creator — with checkboxes. Tic
 **Convert selected**. Star counts, downloads, ratings and comments are never read and never reach the
 output.
 
+**Prev** and **Next** page through four full rows at a time, whatever that works out to at your
+window size. Each site hands out its results in its own page size — 24 on chub, 34 on JanitorAI —
+so those are buffered behind the grid and dealt out to fit it; one press of **Next** may cost a
+request to the site, or none at all.
+
 ### Several at once
 
 Paste card links one per line, mixing both sites freely. They all land in the same grid, already
@@ -246,6 +251,9 @@ Application → Cookies → `sb-auth-auth-token.0`** (plus `.1` if present — l
 across two cookies) — and paste the value into **Settings**. The raw JWT and a `Bearer …` line are
 accepted too. It expires after a few hours, so repeat when searches start failing. **A phone has no
 DevTools panel, so there is no token route there at all** — only copying by hand.
+
+The same two routes sit behind **Missing characters?** under a grid of JanitorAI results, which
+appears only while no token is saved.
 
 Even with a token, a card whose author turned **show definition** off keeps its definition hidden —
 roughly two in five. Those still convert, on their public description, and arrive marked `partial card`.

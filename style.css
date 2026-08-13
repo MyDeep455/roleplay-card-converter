@@ -265,6 +265,10 @@ textarea::-webkit-scrollbar-thumb:hover,
 }
 .bulk-toolbar-left, .bulk-toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
+/* The track count is read back out of this by app.js, which caps it and cuts
+   the page of results to exactly four full rows of whatever it settles on - so
+   the number of columns is decided here and the number of tiles follows it,
+   never the other way round. */
 .bulk-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
@@ -362,12 +366,12 @@ textarea::-webkit-scrollbar-thumb:hover,
 .progress-bar > div { height: 100%; width: 0%; background: var(--accent); transition: width 0.2s; }
 .progress-text { font-size: 0.83rem; color: var(--text-dim); flex: 1 1 200px; }
 
-/* ---------------- region notice ---------------- */
+/* ---------------- notices ---------------- */
 
 /* Below the grid rather than beside the results heading: out of the way until
    something goes wrong, but sitting exactly where someone looks after a page of
    cards has failed to produce what they expected. */
-.region-info-wrap { margin-top: 22px; text-align: center; }
+.jai-info-wrap { margin-top: 22px; text-align: center; }
 
 .notice {
   position: relative;
@@ -854,7 +858,7 @@ textarea::-webkit-scrollbar-thumb:hover,
 
   /* ---------------- notices ---------------- */
 
-  .region-info-wrap { margin-top: 20px; }
+  .jai-info-wrap { margin-top: 20px; }
 
   .notice { padding: 14px 44px 14px 14px; }
   .notice h3 { font-size: 0.98rem; }

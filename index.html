@@ -75,19 +75,19 @@
       <button id="bulk-cancel" class="btn btn-small btn-danger">Cancel</button>
     </div>
 
-    <div class="region-info-wrap">
-      <button id="region-info-btn" class="btn btn-small" aria-expanded="false"
-        aria-controls="region-info">Missing characters?</button>
+    <!-- Only ever shown under a grid of JanitorAI results converted without a
+         token, which is the one case where the grid is knowingly showing less
+         than the site does. Hidden by app.js everywhere else. -->
+    <div id="jai-info-wrap" class="jai-info-wrap hidden">
+      <button id="jai-info-btn" class="btn btn-small" aria-expanded="false"
+        aria-controls="jai-info">Missing characters?</button>
 
-      <div id="region-info" class="notice hidden" role="note">
-        <button id="region-info-close" class="notice-close" aria-label="Close">&times;</button>
-        <h3>You can convert whatever the roleplay platform shows you</h3>
-        <p>Some platforms (such as chub.ai) hide age-restricted cards from some countries outside the
-          USA. That's called geoblocking. If you're in European country for example and want to see
-          unfiltered NSFW results on such platforms, you have to use a VPN (e.g.
-          <a href="https://nordvpn.com/" target="_blank" rel="noopener noreferrer">nordvpn.com</a>).
-          Select USA server as VPN and leave it on while you browse the platform and use this Card
-          Converter.</p>
+      <div id="jai-info" class="notice hidden" role="note">
+        <button id="jai-info-close" class="notice-close" aria-label="Close">&times;</button>
+        <h3>JanitorAI only shows this much when you're logged out</h3>
+        <p>JanitorAI serves logged-out visitors a single page of results and no character
+          descriptions or greetings, so what you see here is not everything it has.</p>
+        <div class="jai-fix"></div>
       </div>
     </div>
   </section>
@@ -115,16 +115,7 @@
     <button id="partial-notice-close" class="notice-close" aria-label="Close">&times;</button>
     <h3 id="partial-notice-title">That card came through partial</h3>
     <p>JanitorAI gives the character description and greeting only to a logged-in account.</p>
-    <ol>
-      <p>Either:</p>
-      <li><strong>Copy the description and greeting by hand</strong> from the card's page on
-        <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer">janitorai.com</a>.</li>
-      <p>or:</p>
-      <li>Log in to <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer">janitorai.com</a> on a computer &rarr; <strong>press F12</strong> &rarr; open tab 
-        <strong>Application</strong> &rarr; look at <strong>sidebar</strong> &rarr; open <strong>Cookies</strong> &rarr; click <strong>https://janitorai.com</strong> &rarr; copy value of 
-        <strong>sb-auth-auth-token</strong> &rarr; paste it 
-        into this tool's <strong>Settings</strong>.</li>
-    </ol>
+    <div class="jai-fix"></div>
   </div>
 
   <div id="results-list" class="results-list"></div>
@@ -199,6 +190,24 @@
     </div>
   </div>
 </div>
+
+<!-- ============================ SHARED NOTICE TEXT ============================ -->
+<!-- The two ways out of a logged-out JanitorAI, written once. Both notices that
+     offer them - the partial card one and "Missing characters?" - carry an
+     empty .jai-fix div that app.js stamps this into, so the wording is edited
+     in one place and the two can never drift apart. -->
+<template id="jai-fix-tpl">
+  <ol>
+    <p>Either:</p>
+    <li><strong>Copy the description and greeting by hand</strong> from the card's page on
+      <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer">janitorai.com</a>.</li>
+    <p>or:</p>
+    <li>Log in to <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer">janitorai.com</a> on a computer &rarr; <strong>press F12</strong> &rarr; open tab
+      <strong>Application</strong> &rarr; look at <strong>sidebar</strong> &rarr; open <strong>Cookies</strong> &rarr; click <strong>https://janitorai.com</strong> &rarr; copy value of
+      <strong>sb-auth-auth-token</strong> &rarr; paste it
+      into this tool's <strong>Settings</strong>.</li>
+  </ol>
+</template>
 
 <script type="module" src="js/app.js"></script>
 </body>
