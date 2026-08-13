@@ -79,13 +79,13 @@
          token, which is the one case where the grid is knowingly showing less
          than the site does. Hidden by app.js everywhere else. -->
     <div id="jai-info-wrap" class="jai-info-wrap hidden">
-      <button id="jai-info-btn" class="btn btn-small" aria-expanded="false"
+      <button id="jai-info-btn" class="btn btn-small btn-warn" aria-expanded="false"
         aria-controls="jai-info">Missing characters?</button>
 
       <div id="jai-info" class="notice hidden" role="note">
         <button id="jai-info-close" class="notice-close" aria-label="Close">&times;</button>
         <h3>JanitorAI probably doesn't show all cards right now</h3>
-        <p>A logged-in JanitorAI account and its token is required to see and convert all character cards. You have two options:</p>
+        <p>A logged-in JanitorAI account and its token is required to see and convert all character cards. Do this to see all cards:</p>
         <div class="jai-fix"></div>
       </div>
     </div>
@@ -114,7 +114,13 @@
     <button id="partial-notice-close" class="notice-close" aria-label="Close">&times;</button>
     <h3 id="partial-notice-title">That card came through partial</h3>
     <p>JanitorAI gives the character description and greeting only to a logged-in account.</p>
-    <div class="jai-fix"></div>
+    <ol>
+      <p>Either:</p>
+      <li><strong>Copy the description and greeting by hand</strong> from the card's page on
+        <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer">janitorai.com</a>.</li>
+      <p>or:</p>
+      <li class="jai-fix"></li>
+    </ol>
   </div>
 
   <div id="results-list" class="results-list"></div>
@@ -191,21 +197,15 @@
 </div>
 
 <!-- ============================ SHARED NOTICE TEXT ============================ -->
-<!-- The two ways out of a logged-out JanitorAI, written once. Both notices that
-     offer them - the partial card one and "Missing characters?" - carry an
-     empty .jai-fix div that app.js stamps this into, so the wording is edited
-     in one place and the two can never drift apart. -->
+<!-- Fetching the token off a desktop browser, written once. Both notices that
+     ask for it - the partial card one and "Missing characters?" - carry an
+     empty .jai-fix element that app.js stamps this into, so the steps are
+     edited in one place and the two can never drift apart. -->
 <template id="jai-fix-tpl">
-  <ol>
-    <p>Either:</p>
-    <li><strong>Copy the description and greeting by hand</strong> from the card's page on
-      <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer">janitorai.com</a>.</li>
-    <p>or:</p>
-    <li>Log in to <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer">janitorai.com</a> on a computer &rarr; <strong>press F12</strong> &rarr; open tab
-      <strong>Application</strong> &rarr; look at <strong>sidebar</strong> &rarr; open <strong>Cookies</strong> &rarr; click <strong>https://janitorai.com</strong> &rarr; copy value of
-      <strong>sb-auth-auth-token</strong> &rarr; paste it
-      into this tool's <strong>Settings</strong>.</li>
-  </ol>
+  <p>Log in to <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer">janitorai.com</a> on a computer &rarr; <strong>press F12</strong> &rarr; open tab
+    <strong>Application</strong> &rarr; look at <strong>sidebar</strong> &rarr; open <strong>Cookies</strong> &rarr; click <strong>https://janitorai.com</strong> &rarr; copy value of
+    <strong>sb-auth-auth-token</strong> &rarr; paste it
+    into this tool's <strong>Settings</strong>.</p>
 </template>
 
 <script type="module" src="js/app.js"></script>

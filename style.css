@@ -206,6 +206,13 @@ textarea::-webkit-scrollbar-thumb:hover,
 .btn-danger { border-color: rgba(227, 115, 95, 0.5); color: var(--danger); }
 .btn-danger:hover:not(:disabled) { background: rgba(227, 115, 95, 0.12); border-color: var(--danger); }
 
+/* Filled rather than outlined, because this one has to be seen rather than
+   found: it appears only when the grid is knowingly showing less than the site
+   has, and nothing else on the page says so. The amber is the one the notices
+   are edged with, so the button and the panel it opens read as one thing. */
+.btn-warn { background: var(--warn); border-color: var(--warn); color: #14161b; font-weight: 600; }
+.btn-warn:hover:not(:disabled) { background: #edc463; border-color: #edc463; }
+
 .btn-ghost { background: none; border-color: var(--border); color: var(--text-dim); }
 .btn-small { padding: 6px 11px; font-size: 0.8rem; }
 
@@ -980,4 +987,5 @@ textarea::-webkit-scrollbar-thumb:hover,
   .btn-primary:hover:not(:disabled) { background: var(--accent-strong); border-color: var(--accent-strong); }
   .btn-ghost:hover:not(:disabled) { background: none; border-color: var(--border); }
   .btn-danger:hover:not(:disabled) { background: none; border-color: rgba(227, 115, 95, 0.5); }
+  .btn-warn:hover:not(:disabled) { background: var(--warn); border-color: var(--warn); }
 }
