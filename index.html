@@ -107,51 +107,23 @@
   <p class="hint">Stored in your browser and kept until you clear them. Import downloaded files into
     Casual Character Chat with the <strong>"Import Data"</strong> button.</p>
 
-  <!-- Shown only after a JanitorAI card converts without a greeting or
-       personality, which signed out is every one of them. Left in the results
-       section rather than the status line because the status is overwritten by
-       the next action, and this is the one thing someone needs to read to get
-       usable cards off that site. -->
-  <div id="jai-token-notice" class="notice hidden" role="note">
-    <button id="jai-token-notice-close" class="notice-close" aria-label="Close">&times;</button>
-    <h3>Those JanitorAI cards came through empty &mdash; here's why</h3>
-    <p>JanitorAI hides every character definition from signed-out visitors, so the cards above have
-      no greeting and no personality &mdash; only their public blurb, avatar and tags. It also limits
-      you to the first page of results and refuses searches.</p>
-    <p>Adding your own JanitorAI token fixes all three. This page cannot grab it for you &mdash;
-      browsers keep every site's cookies sealed off from every other site &mdash; but the helper
-      below does it in one tap, and it is the only way that works on a phone.</p>
-
-    <h4>One tap &mdash; works on phones too</h4>
+  <!-- Shown whenever a card converts without its greeting or description. Left
+       in the results section rather than the status line because the status is
+       overwritten by the next action, and this is the one thing someone needs
+       to read to get a usable card out of a partial one. -->
+  <div id="partial-notice" class="notice hidden" role="note">
+    <button id="partial-notice-close" class="notice-close" aria-label="Close">&times;</button>
+    <h3 id="partial-notice-title">That card came through partial</h3>
+    <p>JanitorAI gives the greeting and description only to a logged-in account, so the card arrived
+      without them. Two ways to get them:</p>
     <ol>
-      <li><strong>On a computer:</strong> drag
-        <a id="jai-bookmarklet" href="#" class="bookmarklet">Get my JanitorAI token</a>
-        onto your bookmarks bar.<br />
-        <strong>On a phone:</strong> press <button id="jai-copy-bookmarklet" class="btn btn-small">Copy the code</button>
-        then bookmark any page, edit that bookmark, and replace its address with what you copied.
-        Name it something you will recognise.</li>
-      <li>Open <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer">janitorai.com</a>
-        and log in.</li>
-      <li>Tap the bookmark while you are on that site. On a phone you may have to start typing its
-        name in the address bar and pick it from the suggestions.</li>
-      <li>Come back here, open <strong>Settings</strong>, and paste it into the JanitorAI box.</li>
+      <li>Copy the description and greeting by hand from the card's page on
+        <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer">janitorai.com</a>.</li>
+      <li>On a computer, logged in on janitorai.com: press <strong>F12</strong>, open
+        <strong>Application &rarr; Cookies</strong>, copy the value of
+        <strong>sb-auth-auth-token.0</strong> (and <strong>.1</strong> if it is there) and paste it
+        into <strong>Settings</strong> here. Phones cannot do this.</li>
     </ol>
-
-    <h4>Or, on a computer, without the bookmark</h4>
-    <ol>
-      <li>On <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer">janitorai.com</a>,
-        logged in, press <strong>F12</strong>.</li>
-      <li>Go to <strong>Application &rarr; Cookies &rarr; https://janitorai.com</strong>.</li>
-      <li>Copy the value of <strong>sb-auth-auth-token.0</strong> (and <strong>.1</strong> after it,
-        if there is one &mdash; long logins get split in two).</li>
-      <li>Paste it into <strong>Settings</strong> here and press Save.</li>
-    </ol>
-
-    <p>The helper copies only your access token, never the rest of the cookie &mdash; the part it
-      leaves behind is the one that could mint new logins. The token stays in your browser, is sent
-      only to JanitorAI, and expires after a few hours, so repeat this when searches start failing.
-      Cards whose author switched off &ldquo;show definition&rdquo; stay empty even with a token
-      &mdash; roughly two in five.</p>
   </div>
 
   <div id="results-list" class="results-list"></div>

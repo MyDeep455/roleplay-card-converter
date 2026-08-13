@@ -239,21 +239,16 @@ cookies off from every other site, JanitorAI answers with `Access-Control-Allow-
 browsers refuse for credentialed requests, so its login cannot be borrowed), and it refuses to be
 framed. All three were tested; all three are walls.
 
-So the converter ships a **bookmarklet** instead. Convert any JanitorAI card while signed out and a
-panel appears with a *Get my JanitorAI token* button: drag it to your bookmarks bar (or copy its code
-into a bookmark on a phone), tap it while on janitorai.com, and it copies your token ready to paste
-into **Settings**. It reads the cookie in one tap and copies **only the access token**, never the
-refresh token beside it — the token it copies expires in hours; the one it leaves behind could mint
-new logins.
-
-**On a phone this is the only route that works at all**, since there is no DevTools panel to read a
-cookie from. On a computer you can skip it: **F12 → Application → Cookies → `sb-auth-auth-token.0`**
-(plus `.1` if present — long sessions are split across two cookies) and paste the value in. The raw
-JWT and a `Bearer …` line are accepted too. It expires after a few hours, so repeat when searches
-start failing.
+So a card that arrives without its greeting and description raises a notice offering the only two
+routes there are: copy the description and greeting by hand from the card's page, or, **on a
+computer**, read the token out of the browser yourself — logged in on janitorai.com, **F12 →
+Application → Cookies → `sb-auth-auth-token.0`** (plus `.1` if present — long sessions are split
+across two cookies) — and paste the value into **Settings**. The raw JWT and a `Bearer …` line are
+accepted too. It expires after a few hours, so repeat when searches start failing. **A phone has no
+DevTools panel, so there is no token route there at all** — only copying by hand.
 
 Even with a token, a card whose author turned **show definition** off keeps its definition hidden —
-roughly two in five. Those still convert, on their public description, and arrive marked `partial`.
+roughly two in five. Those still convert, on their public description, and arrive marked `partial card`.
 
 A token you enter is stored in your browser's IndexedDB on your own machine and sent only to the site
 it belongs to. When a request goes through the proxy it is forwarded once and never logged or stored.
