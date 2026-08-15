@@ -1107,8 +1107,8 @@ function bulkTotalCards() {
 function bulkFoundMessage(shown) {
   const total = bulkTotalCards();
   return total > shown
-    ? `${total} cards found - ${shown} on this page. Tick the ones you want.`
-    : `${shown} cards. Tick the ones you want.`;
+    ? `${total} cards found - ${shown} on this page.`
+    : `${shown} cards.`;
 }
 
 // The site counts in its own pages and this grid counts in four rows, so the
