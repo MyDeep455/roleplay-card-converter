@@ -7,6 +7,17 @@
  *   isLibraryUrl(url)           library/search page rather than a single card?
  *   fetchCard(url, ctx)         one card  -> NormalizedCard
  *   listLibrary(url, page, ctx) a library page -> { items, page, totalPages, total }
+ *   search                      how to build one of those library URLs from a
+ *                               filled-in form rather than a copied address bar
+ *
+ * SEARCHING WITHOUT LEAVING
+ * `listLibrary` reads nothing but the URL's query string, so the search box in
+ * the header does not need a second code path: it builds the site's own search
+ * URL and hands it to exactly the same mirror. That is why `search.build`
+ * returns a real, openable address rather than an internal object - the link
+ * under the grid stays clickable, a search can be copied out to the site, and
+ * a pasted URL and a typed query are the same thing by the time anything
+ * fetches. `search.parse` is the way back, so pasting a link fills the form in.
  *
  * `total` is how many cards the search has in all, counting only the pages this
  * adapter can actually reach - JanitorAI signed out serves one page and refuses
@@ -24,6 +35,32 @@ import { blobToWebpDataUrl, blobToGalleryDataUrl, extractCardFromPng } from './m
 import { normalizeSpecCard } from './convert.js';
 
 const clean = s => (typeof s === 'string' ? s.trim() : '');
+
+/* ---------- search criteria ---------- */
+
+/**
+ * What the search panel hands to an adapter, and what `search.parse` hands
+ * back. One shape for all three sites; each adapter spends only the parts it
+ * can actually honour and declares the rest in `search.supports`, so a control
+ * that would do nothing is never drawn.
+ *
+ *   term         the search box
+ *   sort         one of the adapter's own `search.sorts` values
+ *   tags         must have these
+ *   excludeTags  must not have these
+ *   nsfw         'include' | 'exclude' | 'only'
+ *
+ * All three sites take their tag lists as one comma-separated parameter.
+ * Repeating the parameter instead - `tags=a&tags=b` - is accepted and then
+ * quietly read as `a` alone, which looks like a filter that does not work
+ * rather than one spelled wrong, so the joining below is not cosmetic.
+ */
+export function emptyCriteria() {
+  return { term: '', sort: '', tags: [], excludeTags: [], nsfw: 'include' };
+}
+
+const splitTags = s => clean(s).split(',').map(t => t.trim()).filter(Boolean);
+const joinTags = list => (Array.isArray(list) ? list : []).map(t => clean(t)).filter(Boolean).join(',');
 
 async function imageToDataUrl(url, { gallery = false } = {}) {
   if (!url) return '';
@@ -197,6 +234,74 @@ const chub = {
     'msgs_user', 'chats_user', 'name', 'timeline', 'n_tokens', 'random',
     'trending', 'newcomer', 'favorite_time', 'ai_rating', 'public_chats', 'default',
   ]),
+
+  // Every one of these names is what the site's own address bar carries on a
+  // filtered browse page, so a URL built here is one chub itself would have
+  // written - it opens on the site unchanged.
+  //
+  // Two of them are easy to guess wrong. Tags are `topics`, not `tags`, and
+  // the exclusion is `excludetopics` - one word, no underscore.
+  search: {
+    supports: { tags: true, excludeTags: true, nsfw: true },
+    tagHint: 'e.g. Fantasy, Female',
+
+    // A dozen of the 22 the API accepts. The rest - `id`, `timeline`,
+    // `favorite_time`, `msgs_user` and friends - order by things the grid does
+    // not show and nobody browses by, so they would be a longer menu for no
+    // extra reach.
+    sorts: [
+      { value: 'default',          label: 'Relevance' },
+      { value: 'trending',         label: 'Trending' },
+      { value: 'star_count',       label: 'Most stars' },
+      { value: 'download_count',   label: 'Most downloads' },
+      { value: 'n_favorites',      label: 'Most favourites' },
+      { value: 'rating',           label: 'Highest rated' },
+      { value: 'ai_rating',        label: 'Highest AI rating' },
+      { value: 'created_at',       label: 'Newest' },
+      { value: 'last_activity_at', label: 'Recently updated' },
+      { value: 'msgs_chat',        label: 'Most messages' },
+      { value: 'n_tokens',         label: 'Longest' },
+      { value: 'newcomer',         label: 'Newcomers' },
+      { value: 'random',           label: 'Random' },
+    ],
+    defaultSort: 'trending',
+
+    build(c) {
+      const q = new URLSearchParams();
+      if (c.term) q.set('search', c.term);
+      q.set('namespace', 'characters');
+      if (c.tags.length) q.set('topics', joinTags(c.tags));
+      if (c.excludeTags.length) q.set('excludetopics', joinTags(c.excludeTags));
+      q.set('sort', chub.SORTS.has(c.sort) ? c.sort : 'trending');
+
+      // Three flags rather than one. `nsfw` and `nsfl` decide what may appear;
+      // `nsfw_only` throws away everything tame. Left explicit in all three
+      // cases so the built URL says what it means when opened on the site,
+      // instead of relying on whatever the site would have defaulted to.
+      const only = c.nsfw === 'only';
+      const allow = c.nsfw !== 'exclude';
+      q.set('nsfw', String(allow));
+      q.set('nsfl', String(allow));
+      q.set('nsfw_only', String(only));
+
+      q.set('page', '1');
+      return `https://chub.ai/characters?${q}`;
+    },
+
+    parse(u) {
+      const p = u.searchParams;
+      const sort = p.get('sort') || p.get('segment') || '';
+      return {
+        term: clean(p.get('search') || p.get('q') || p.get('query')),
+        sort: chub.SORTS.has(sort) ? sort : '',
+        tags: splitTags(p.get('topics') || p.get('tags')),
+        excludeTags: splitTags(p.get('excludetopics')),
+        nsfw: p.get('nsfw_only') === 'true' ? 'only'
+            : p.get('nsfw') === 'false' ? 'exclude'
+            : 'include',
+      };
+    },
+  },
 
   async listLibrary(url, page, ctx = {}) {
     const src = new URL(url).searchParams;
@@ -383,6 +488,78 @@ const characterTavern = {
   // and silently ignores a mistake rather than erroring: the search term is
   // `query` (not `q`, which returns the unfiltered list) and the page size is
   // `limit` (not `hitsPerPage`, which is ignored in favour of the default 30).
+  // This site is the lenient one, and that is the hazard: a parameter it does
+  // not know, or a value it does not accept, comes back 200 with the whole
+  // unfiltered library rather than an error. A wrong guess here therefore
+  // looks like a filter that does nothing, so every name below was checked by
+  // watching the result count move against the unfiltered 4,243.
+  search: {
+    // No NSFW flag of any kind exists - `nsfw`, `isNSFW`, `nsfw_only` and
+    // `contentWarnings` are all read past. What the site does have is `nsfw`
+    // as an ordinary tag, so the safety control is spent on the tag lists
+    // below instead. That is a real filter rather than an approximation of one.
+    supports: { tags: true, excludeTags: true, nsfw: true },
+    tagHint: 'e.g. fantasy, romance',
+
+    // Three, and no more. Thirteen plausible names were tried - `popular`,
+    // `top_rated`, `most_chats`, `relevance`, `latest`, `random` among them -
+    // and every one but these returned the default order untouched. Offering
+    // them would be offering ten menu entries that quietly do nothing.
+    sorts: [
+      { value: '',         label: 'Relevance' },   // the site's own default; omitted from the URL
+      // Not an ordering over the whole library the way chub's trending is - it
+      // is a shelf of about thirty hand-picked cards, and a search term
+      // intersected with thirty cards is reliably nothing at all: `query=elf`
+      // alone finds 150, and `query=elf&sort=trending` finds zero. So it
+      // cannot be the default here, and when it does empty a search the panel
+      // says which of the two to let go of.
+      { value: 'trending', label: 'Trending',
+        narrows: 'Trending on Character Tavern is a short hand-picked list of about 30 cards rather than an ordering of the whole library, so it very rarely survives a search term.' },
+      { value: 'newest',   label: 'Newest' },
+      { value: 'oldest',   label: 'Oldest' },
+    ],
+    defaultSort: '',
+
+    build(c) {
+      const q = new URLSearchParams();
+      if (c.term) q.set('query', c.term);
+
+      const include = [...c.tags];
+      const exclude = [...c.excludeTags];
+      if (c.nsfw === 'only') include.push('nsfw');
+      if (c.nsfw === 'exclude') exclude.push('nsfw');
+
+      // Matching is case-insensitive, so what someone types is left as typed.
+      if (include.length) q.set('tags', joinTags(include));
+      if (exclude.length) q.set('exclude_tags', joinTags(exclude));
+      if (c.sort) q.set('sort', c.sort);
+
+      // Every control here can be left alone - browsing with no filters at all
+      // is a real request - and a bare "...?" in the link under the grid looks
+      // like something failed to fill in.
+      const qs = q.toString();
+      return `https://character-tavern.com/search/cards${qs ? `?${qs}` : ''}`;
+    },
+
+    parse(u) {
+      const p = u.searchParams;
+      const tags = splitTags(p.get('tags'));
+      const exclude = splitTags(p.get('exclude_tags'));
+      const isNsfw = t => t.toLowerCase() === 'nsfw';
+
+      return {
+        term: clean(p.get('query') || p.get('q') || p.get('search')),
+        sort: p.get('sort') || '',
+        // The nsfw tag came from the safety control rather than the tag box,
+        // so it goes back to it - otherwise a round trip through the form
+        // would leave "nsfw" sitting in the tag list as if it were typed.
+        tags: tags.filter(t => !isNsfw(t)),
+        excludeTags: exclude.filter(t => !isNsfw(t)),
+        nsfw: tags.some(isNsfw) ? 'only' : exclude.some(isNsfw) ? 'exclude' : 'include',
+      };
+    },
+  },
+
   async listLibrary(url, page) {
     const src = new URL(url).searchParams;
     const q = new URLSearchParams(src);
@@ -633,6 +810,60 @@ const janitorai = {
   // a document - the card itself keeps the author's own formatting.
   blurb(html) {
     return htmlToText(html).replace(/\s+/g, ' ').trim();
+  },
+
+  // The narrowest of the three, and the only one where that is the API's doing
+  // rather than a choice made here.
+  search: {
+    // No tag boxes. The site's own URLs carry `tags` and `custom_tags`, but
+    // the API accepts both and returns a byte-identical payload either way -
+    // the same is true of `limit` and `size`. A tag field here would be a box
+    // that changes nothing, which is worse than no box, so the panel hides
+    // them for this platform rather than offering a filter that cannot work.
+    supports: { tags: false, excludeTags: false, nsfw: true },
+
+    // `mode` is this site's safety filter and it is a first-class parameter
+    // here, unlike on Character Tavern where it has to be spent on a tag.
+    sorts: [
+      { value: 'popular',    label: 'Popular' },
+      { value: 'trending',   label: 'Trending' },
+      { value: 'trending24', label: 'Trending today' },
+      { value: 'latest',     label: 'Latest' },
+      { value: 'created',    label: 'Newest' },
+      { value: 'relevance',  label: 'Relevance' },
+      { value: 'random',     label: 'Random' },
+    ],
+    defaultSort: 'popular',
+
+    // Searching here is the one thing on any platform that simply fails
+    // without a token - the API answers 401 rather than returning less - so
+    // the panel says so before the search rather than after it.
+    tokenRequiredFor: 'search',
+
+    build(c) {
+      const q = new URLSearchParams();
+      if (c.term) q.set('search', c.term);
+
+      // Relevance orders by how well a card matches the words typed, so it is
+      // the right default with a term and meaningless without one.
+      const sort = janitorai.SORTS.has(c.sort) ? c.sort : (c.term ? 'relevance' : 'popular');
+      q.set('sort', sort);
+      q.set('mode', c.nsfw === 'only' ? 'nsfw' : c.nsfw === 'exclude' ? 'sfw' : 'all');
+      q.set('page', '1');
+      return `https://janitorai.com/search?${q}`;
+    },
+
+    parse(u) {
+      const p = u.searchParams;
+      const sort = clean(p.get('sort'));
+      const mode = clean(p.get('mode'));
+      return {
+        ...emptyCriteria(),
+        term: clean(p.get('search') || p.get('q') || p.get('query')),
+        sort: janitorai.SORTS.has(sort) ? sort : '',
+        nsfw: mode === 'nsfw' ? 'only' : mode === 'sfw' ? 'exclude' : 'include',
+      };
+    },
   },
 
   // The site keeps its browse state in the query string - `sort`, `mode` and

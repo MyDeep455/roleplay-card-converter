@@ -27,3 +27,17 @@
  * ========================================================================= */
 
 export const HOSTED_PROXY = 'https://ccc-card-converter.onrender.com';
+
+/* -------------------------------------------------------------------------
+ * Where Casual Character Chat lives.
+ * -------------------------------------------------------------------------
+ * Only ever used as a fallback. The normal way in is the other direction:
+ * Casual Character Chat opens this tool itself, and tells it where to send
+ * cards back to in the link it opens (see js/ccc-link.js). Whoever launched
+ * the tool is always preferred over anything written here, so a self-hosted
+ * copy of the app keeps working without this ever being touched.
+ *
+ * This address is what "Import" falls back to when the tool was opened on its
+ * own - a bookmark, a search result - and there is no launcher to answer to.
+ * ------------------------------------------------------------------------- */
+export const CCC_APP_URL = 'https://casual-character-chat.vercel.app/';

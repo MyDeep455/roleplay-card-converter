@@ -2,7 +2,7 @@
  * APP - wiring, UI state and the conversion pipelines
  * ========================================================================= */
 
-import { ADAPTERS, adapterForUrl } from './adapters.js';
+import { ADAPTERS, adapterForUrl, emptyCriteria } from './adapters.js';
 import { toCccCharacter, toCccBackup } from './convert.js';
 import { blobToWebpDataUrl } from './media.js';
 import {
@@ -13,6 +13,7 @@ import {
   listCardsLight, getSetting, setSetting,
 } from './db.js';
 import { maybeStartTour } from './tour.js';
+import { connect, sendBackup, focusApp } from './ccc-link.js';
 
 const $ = id => document.getElementById(id);
 
@@ -80,6 +81,72 @@ function downloadJson(obj, filename) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ---------------- importing straight into the app ---------------- */
+
+// Both Import buttons do the same three things in the same order, and the
+// order is the whole trick: the app tab has to be asked for *before* the cards
+// are read out of IndexedDB. `connect()` may need window.open, and a browser
+// only grants that while the click is still on the stack - one await first and
+// the popup is blocked instead. So the tab is claimed first and the cards are
+// loaded into it while it boots.
+//
+// `load` is therefore a function, not an array: it is called after the tab is
+// already opening.
+//
+// The button is passed in rather than read off the event inside, because
+// `event.currentTarget` is only set while the event is being dispatched and is
+// null by the time any handler that awaited something looks at it.
+//
+// @param load      () => Promise<character[]>
+// @param describe  (added: number) => string, for the toast: '"Alice"', '3 cards'.
+//                  Given what the app actually took, not what was sent, so a
+//                  batch that was half duplicates does not claim all of it.
+async function importToCcc(button, load, describe) {
+  const label = button.textContent;
+  let session;
+
+  try {
+    session = connect();               // synchronous on purpose - see above
+  } catch (err) {
+    showToast(describeError(err), 'warn');
+    return false;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Importing…';
+
+  try {
+    const characters = await load();
+    if (!characters.length) return false;
+
+    const result = await sendBackup(session, toCccBackup(characters));
+
+    if (result.cancelled) {
+      showToast('Import cancelled in Casual Character Chat.', 'warn');
+      return false;
+    }
+
+    // The app skips a character whose id it already holds, which is what
+    // makes importing the same card twice harmless - and worth saying, so a
+    // second press that appears to do nothing is explained rather than
+    // looking broken.
+    if (!result.added && result.skipped) {
+      showToast(`Already in Casual Character Chat - nothing to add.`, 'warn');
+      return true;
+    }
+
+    const skipped = result.skipped ? `, ${result.skipped} already there` : '';
+    showToast(`Imported ${describe(result.added)} into Casual Character Chat${skipped}.`);
+    return true;
+  } catch (err) {
+    showToast(describeError(err), 'warn');
+    return false;
+  } finally {
+    button.disabled = false;
+    button.textContent = label;
+  }
 }
 
 function confirmDialog(title, text, confirmLabel = 'Delete') {
@@ -282,6 +349,246 @@ $('settings-save').addEventListener('click', async () => {
   // been acted on would read as "that did not work".
   if (state.tokens.janitorai) $('partial-notice').classList.add('hidden');
   updateJaiInfo();
+
+  // The panel's note asks for exactly this token, so it has to stop asking the
+  // moment one is saved.
+  updateSearchNote(searchAdapter());
+});
+
+/* =========================================================================
+ * THE SEARCH PANEL
+ * -------------------------------------------------------------------------
+ * Browsing used to mean leaving: set a search up on chub, copy the address
+ * bar, come back, paste. The panel closes that loop, and it does so without a
+ * second way of fetching anything - it builds the site's own search URL and
+ * hands it to the same mirror a pasted link goes through. So there is one
+ * code path from here down, and a search made here can still be opened on the
+ * site, because it is that site's URL.
+ *
+ * What the panel can offer differs per platform and is never guessed: each
+ * adapter's `search` descriptor names its sort orders and says which filters
+ * it can actually honour. A control the chosen site would ignore is hidden
+ * rather than shown dead, because a tag box that silently changes nothing is
+ * worse than no tag box at all.
+ * ========================================================================= */
+
+// Kept in sync with loadDiscover below: the opening grid and the panel above
+// it must agree on the first paint, or the tool appears to be showing the
+// results of a search nobody ran. chub is the choice for both because it needs
+// neither the proxy nor a token - see loadDiscover.
+const DEFAULT_PLATFORM = 'chub';
+
+const searchable = () => ADAPTERS.filter(a => a.search);
+
+function searchAdapter() {
+  return searchable().find(a => a.id === $('search-platform').value) || searchable()[0];
+}
+
+/** What is in the boxes right now. */
+function readCriteria() {
+  const splitList = s => s.split(',').map(t => t.trim()).filter(Boolean);
+  return {
+    term: $('search-term').value.trim(),
+    sort: $('search-sort').value,
+    tags: splitList($('search-tags').value),
+    excludeTags: splitList($('search-exclude').value),
+    nsfw: $('search-nsfw').value,
+  };
+}
+
+/** Put criteria back into the boxes - used when a pasted link fills them in. */
+function writeCriteria(c) {
+  $('search-term').value = c.term || '';
+  $('search-tags').value = (c.tags || []).join(', ');
+  $('search-exclude').value = (c.excludeTags || []).join(', ');
+  $('search-nsfw').value = c.nsfw || 'include';
+
+  // Only if this platform actually has the sort that was asked for; the
+  // vocabularies do not overlap, so a stale value would silently select the
+  // first entry in the menu instead.
+  //
+  // Tested against the options rather than for truthiness, because "" is a
+  // real choice on Character Tavern - its relevance ordering is the absence of
+  // a sort parameter - and skipping it would leave the menu showing whatever
+  // the last platform was on.
+  const sort = $('search-sort');
+  if ([...sort.options].some(o => o.value === c.sort)) sort.value = c.sort;
+}
+
+/**
+ * Redraw the sort menu for the chosen platform.
+ *
+ * The three sites share almost no sort values - chub says `created_at` where
+ * JanitorAI says `created` and Character Tavern says `newest` - so switching
+ * platform cannot simply keep the string. It keeps the *label* instead, so
+ * someone reading "Trending" who switches sites is still reading Trending
+ * afterwards, and only falls back to the platform default when the ordering
+ * they were on does not exist there at all.
+ *
+ * An ordering the adapter has flagged as `narrows` is never arrived at this
+ * way, only chosen. The two sites use "Trending" for different things - chub
+ * orders the whole library by it, Character Tavern hand-picks about thirty
+ * cards - so carrying the word across would land someone on a shelf too small
+ * to search, and it would happen on the most ordinary move there is, since the
+ * tool opens on chub's Trending to begin with. Picking it deliberately still
+ * works; drifting into it does not.
+ */
+function populateSortMenu(adapter, keepLabel = '') {
+  const sel = $('search-sort');
+  sel.innerHTML = '';
+  adapter.search.sorts.forEach(o => sel.add(new Option(o.label, o.value)));
+
+  const match = adapter.search.sorts.find(o => o.label === keepLabel && !o.narrows);
+  sel.value = match ? match.value : adapter.search.defaultSort;
+}
+
+/** Hide the controls this platform would ignore, and say why where it helps. */
+function applyPlatformSupport(adapter) {
+  const s = adapter.search.supports;
+  $('search-tags-field').classList.toggle('hidden', !s.tags);
+  $('search-exclude-field').classList.toggle('hidden', !s.excludeTags);
+  $('search-nsfw-field').classList.toggle('hidden', !s.nsfw);
+
+  const hint = adapter.search.tagHint || '';
+  if (s.tags) $('search-tags').placeholder = hint.replace(/^e\.g\. /, '');
+
+  updateSearchNote(adapter);
+}
+
+/**
+ * The line under the panel. Only ever about something that would otherwise
+ * fail or come back short without explaining itself.
+ */
+function updateSearchNote(adapter) {
+  const note = $('search-note');
+  const notes = [];
+
+  // JanitorAI is the one platform where searching signed out does not return
+  // less - it returns 401. Better said before the search than after it.
+  if (adapter.search.tokenRequiredFor === 'search' && !state.tokens[adapter.id]) {
+    notes.push(
+      `${adapter.label} needs your account token to search or to page past the first results. ` +
+      `Add one in Settings - without it you can still browse this first page.`
+    );
+  }
+  if (!adapter.search.supports.tags) {
+    notes.push(`${adapter.label}'s API ignores tag filters, so there are no tag boxes for it.`);
+  }
+
+  note.textContent = notes.join(' ');
+  note.classList.toggle('hidden', !notes.length);
+}
+
+/**
+ * Redraw the panel for whichever platform is now chosen.
+ *
+ * Deliberately does not search - it is also how the panel is set up at boot
+ * and how a pasted link fills it in, and neither of those wants a fetch. The
+ * listener below adds that for the one case that does.
+ */
+function onPlatformChange() {
+  const adapter = searchAdapter();
+  const keep = $('search-sort').selectedOptions[0]?.textContent || '';
+  populateSortMenu(adapter, keep);
+  applyPlatformSupport(adapter);
+}
+
+/**
+ * What to suggest letting go of when a search comes back with nothing.
+ *
+ * "That library page returned no cards" is true and useless: with four
+ * controls set, the one that emptied it could be any of them. This names what
+ * is actually narrowing, worst offender first - a sort the adapter has warned
+ * about goes to the front, because that is the one nobody would suspect.
+ */
+function narrowingHint(adapter, criteria) {
+  const sortOption = adapter.search.sorts.find(o => o.value === criteria.sort);
+  const bits = [];
+
+  if (criteria.term) bits.push('the search term');
+  if (criteria.tags.length) bits.push('the tags');
+  if (criteria.excludeTags.length) bits.push('the excluded tags');
+  if (criteria.nsfw !== 'include') bits.push('the content filter');
+
+  if (!bits.length && !sortOption?.narrows) return '';
+
+  const loosen = bits.length ? ` Try loosening ${bits.join(', ')}.` : '';
+  return `${sortOption?.narrows ? ` ${sortOption.narrows}` : ''}${loosen}`;
+}
+
+/** Build the platform's own search URL from the panel and mirror it. */
+function runSearch() {
+  const adapter = searchAdapter();
+
+  // Same reason handleInput sets it: this is the person's own request, and a
+  // suggestion load still in flight must not land on top of it.
+  discoverSuperseded = true;
+
+  const criteria = { ...emptyCriteria(), ...readCriteria() };
+  const url = adapter.search.build(criteria);
+
+  // Straight to the mirror, exactly as a pasted search link would have gone.
+  // Page 1 always: this is a new search, not a continuation of one.
+  return startMirror(1, url, narrowingHint(adapter, criteria));
+}
+
+/**
+ * Point the panel at whatever was just pasted.
+ *
+ * Without this the two halves drift apart the moment someone pastes a link:
+ * the grid would show a chub search for "elf" while the panel above it still
+ * read Character Tavern with an empty box, and the next press of Search would
+ * throw away the results on screen for no reason the person could see.
+ */
+function syncPanelToUrl(adapter, url) {
+  if (!adapter.search) return;
+  try {
+    $('search-platform').value = adapter.id;
+    onPlatformChange();
+    writeCriteria({ ...emptyCriteria(), ...adapter.search.parse(url) });
+  } catch {
+    // A link the panel cannot express is still a perfectly good link to
+    // mirror - it just leaves the controls where they were.
+  }
+}
+
+function initSearchPanel() {
+  const sel = $('search-platform');
+  searchable().forEach(a => sel.add(new Option(a.label, a.id)));
+  sel.value = DEFAULT_PLATFORM;
+  onPlatformChange();
+}
+
+// Switching site searches straight away, for the same reason the sort menu
+// does: the panel is a description of the grid beneath it. Leaving the old
+// site's results sitting under a panel that now names a different one is the
+// tool contradicting itself, and the first thing anyone would do to resolve
+// that is press Search - so it is pressed for them.
+$('search-platform').addEventListener('change', () => {
+  onPlatformChange();
+  runSearch();
+});
+
+$('search-btn').addEventListener('click', runSearch);
+
+// Enter submits here, unlike in the paste box below. That box holds a list and
+// a key that submitted it would cut a paste short; this is one line, and a
+// search field that ignores Enter feels broken.
+['search-term', 'search-tags', 'search-exclude'].forEach(id => {
+  $(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
+  });
+});
+
+// Changing the ordering or the safety filter is a new search every time, so it
+// runs itself rather than leaving a stale grid under a changed menu.
+$('search-sort').addEventListener('change', runSearch);
+$('search-nsfw').addEventListener('change', runSearch);
+
+$('search-reset').addEventListener('click', () => {
+  const adapter = searchAdapter();
+  writeCriteria({ ...emptyCriteria(), sort: adapter.search.defaultSort });
+  runSearch();
 });
 
 /* =========================================================================
@@ -317,7 +624,12 @@ async function handleInput() {
     return setStatus(status, err.message || String(err), 'error');
   }
 
-  if (adapter.isLibraryUrl(url)) return startMirror(pageFromUrl(raw));
+  if (adapter.isLibraryUrl(url)) {
+    // Move the panel onto what was just pasted, so the controls describe the
+    // grid rather than contradicting it.
+    syncPanelToUrl(adapter, url);
+    return startMirror(pageFromUrl(raw));
+  }
   return convertSingle(raw, adapter);
 }
 
@@ -450,7 +762,9 @@ async function stepBulkPage(dir) {
   }
 }
 
-async function startMirror(page, sourceUrl = null) {
+// `emptyHint` is only ever read when the search comes back with nothing, and
+// only the panel passes one - a pasted URL has no controls to point at.
+async function startMirror(page, sourceUrl = null, emptyHint = '') {
   const status = $('bulk-status');
   const raw = (sourceUrl || $('url-input').value).trim();
   if (!raw) return setStatus(status, 'Paste a link first.', 'error');
@@ -494,7 +808,7 @@ async function startMirror(page, sourceUrl = null) {
     if (state.bulk !== mine) return;
 
     if (!state.bulk.feed.length) {
-      setStatus(status, 'That library page returned no cards.', 'error');
+      setStatus(status, `Nothing matched that search.${emptyHint}`, 'error');
       renderBulkGrid();
       return;
     }
@@ -630,7 +944,14 @@ function hydrateListAvatars(items) {
  * these are suggestions, not work already started on someone's behalf.
  * ========================================================================= */
 
-const DISCOVER_URL = 'https://chub.ai/characters?sort=trending';
+// Built from the adapter rather than written out, so the opening grid is
+// literally the search the panel above it is showing - press Search without
+// touching anything and you get the same page back, which is what makes the
+// panel readable as a description of the grid rather than as an empty form.
+const DISCOVER_URL = (() => {
+  const a = ADAPTERS.find(x => x.id === DEFAULT_PLATFORM);
+  return a.search.build({ ...emptyCriteria(), sort: a.search.defaultSort });
+})();
 
 // The moment someone pastes their own link, whatever this was loading stops
 // mattering - a late reply must not replace what they actually asked for.
@@ -762,7 +1083,7 @@ function renderBulkSource() {
   hint.classList.remove('hidden');
   hint.innerHTML = urlList
     ? 'All selected &rarr; untick any you don\'t want &rarr; click "Convert selected"'
-    : 'Select any characters &rarr; Convert & Download &rarr; Import to Casual Character Chat';
+    : 'Select any characters &rarr; Convert &rarr; Import to Casual Character Chat';
 }
 
 // How many cards this search has to offer, not how many are on screen - the
@@ -1030,11 +1351,13 @@ async function renderResults() {
 
   if (!rows.length) {
     empty.classList.remove('hidden');
+    $('import-all').disabled = true;
     $('download-all').disabled = true;
     $('clear-all').disabled = true;
     return;
   }
   empty.classList.add('hidden');
+  $('import-all').disabled = false;
   $('download-all').disabled = false;
   $('clear-all').disabled = false;
 
@@ -1056,9 +1379,18 @@ async function renderResults() {
         <div class="result-badges">${badges.join('')}</div>
       </div>
       <div class="result-actions">
+        <button class="btn btn-small btn-import" data-act="import">Import</button>
         <button class="btn btn-small" data-act="download">Download</button>
         <button class="btn btn-small btn-danger" data-act="delete">Delete</button>
       </div>`;
+
+    const importBtn = row.querySelector('[data-act="import"]');
+    importBtn.addEventListener('click', () => {
+      importToCcc(importBtn, async () => {
+        const full = await getCard(r.id);
+        return full ? [full.character] : [];
+      }, () => `"${r.name}"`);
+    });
 
     row.querySelector('[data-act="download"]').addEventListener('click', async () => {
       const full = await getCard(r.id);
@@ -1104,17 +1436,40 @@ function toggleJaiInfo(show) {
 $('jai-info-btn').addEventListener('click', () => toggleJaiInfo());
 $('jai-info-close').addEventListener('click', () => toggleJaiInfo(false));
 
-$('download-all').addEventListener('click', async () => {
+// Re-read one at a time rather than getAll: a large collection with galleries
+// would otherwise be fully resident before anything is done with it.
+async function loadAllCharacters() {
   const rows = await listCardsLight();
-  if (!rows.length) return;
-
-  // Re-read one at a time rather than getAll: a large collection with
-  // galleries would otherwise be fully resident before serialisation starts.
   const characters = [];
   for (const r of rows) {
     const full = await getCard(r.id);
     if (full?.character) characters.push(full.character);
   }
+  return characters;
+}
+
+// Nothing is awaited before importToCcc: it has to reach `connect()` while the
+// click is still on the stack or the app tab gets blocked as a popup. The empty
+// case is handled by `load` returning nothing rather than by counting first.
+$('import-all').addEventListener('click', async () => {
+  const ok = await importToCcc(
+    $('import-all'),
+    loadAllCharacters,
+    added => `${added} card${added > 1 ? 's' : ''}`
+  );
+
+  // Only on the "all" button, and only once it worked. This is the end of the
+  // run - there is nothing left here to do, and the point of the whole feature
+  // is to be back in the app with the cards in it. A single Import deliberately
+  // does not do this: that one is usually the first of several, and yanking the
+  // tab away between each would make importing five cards a fight.
+  if (ok) focusApp();
+});
+
+$('download-all').addEventListener('click', async () => {
+  const characters = await loadAllCharacters();
+  if (!characters.length) return;
+
   const date = new Date().toISOString().split('T')[0];
   downloadJson(toCccBackup(characters), `ccc_converted_${characters.length}_cards_${date}.json`);
 });
@@ -1137,6 +1492,11 @@ $('clear-all').addEventListener('click', async () => {
 
 (async function init() {
   state.tokens = (await getSetting('tokens', {})) || {};
+
+  // Before loadDiscover, and after the tokens it reads for its note: the panel
+  // has to be describing the search that the opening grid is about to run.
+  initSearchPanel();
+
   await renderResults();
 
   // Not awaited: the suggestions go direct to chub and have nothing to do with

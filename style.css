@@ -139,9 +139,108 @@ main, .results { max-width: 1500px; margin: 0 auto; padding: 24px; }
 }
 .row .btn { align-self: flex-start; }
 
+/* ---------------- the search panel ---------------- */
+
+/* Raised off the page rather than drawn as another row of the form, because
+   this is the thing the tool is now for: everything below it - the grid, the
+   paste box, the results - is a consequence of what is set here. */
+.search-panel {
+  margin-top: 14px;
+  padding: 14px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* The search line proper. Only the text box grows: the two menus are as wide
+   as their own longest option and no wider, so the field someone types into
+   keeps the space instead of losing it to a dropdown that never needs it. */
+/* The width:100% every field gets under "form controls" is right for a field
+   stacked under its own label and wrong here, where four controls share a
+   line - left alone it makes each one a full-width row of its own. So this
+   row sets its widths from the flex basis instead, and hands all the slack to
+   the text box. */
+.search-main { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.search-main .search-term { flex: 1 1 260px; width: auto; min-width: 0; }
+.search-main .search-select { flex: 0 0 auto; width: auto; min-width: 148px; }
+.search-main .btn { flex: 0 0 auto; }
+
+/* Secondary to the line above - these are narrowing tools, and someone who
+   never opens them should still get a working search. */
+.search-filters {
+  display: flex;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.search-field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 170px; min-width: 0; }
+.search-field > span { font-size: 0.75rem; color: var(--text-faint); letter-spacing: 0.02em; }
+.search-filters .btn { flex: 0 0 auto; }
+
+/* Only ever present when the chosen platform cannot do what the panel appears
+   to offer, so it is coloured as a caveat rather than as help text. */
+.search-note {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--warn);
+}
+
+/* ---------------- the paste fallback ---------------- */
+
+/* Folded away by default. Pasting is still the only route to one specific
+   card and the only one that takes a list, so it stays a click away - but it
+   is no longer the first thing the page asks for. */
+.url-fallback { margin-top: 14px; }
+
+.url-fallback > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  padding: 6px 0;
+  list-style: none;
+}
+.url-fallback > summary::-webkit-details-marker { display: none; }
+
+/* Drawn rather than left to the browser's own triangle, which differs per
+   engine and sits at a different distance from the text in each. */
+.url-fallback > summary::before {
+  content: "\25B8";
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--text-faint);
+  transition: transform 0.15s ease;
+}
+.url-fallback[open] > summary::before { transform: rotate(90deg); }
+.url-fallback > summary:hover { color: var(--text); }
+.url-fallback .row { margin-top: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .url-fallback > summary::before { transition: none; }
+}
+
+/* One column below the point where a search line and two menus stop fitting
+   side by side. The button goes full width with them - a lone right-aligned
+   button under stacked fields reads as belonging to the last field only. */
+/* Turning the row into a column turns every flex-basis above into a *height* -
+   the search box's `flex: 1 1 260px` becomes a 260px-tall text field - so the
+   basis has to be given up along with the direction, not just overridden in
+   width. */
+@media (max-width: 720px) {
+  .search-main { flex-direction: column; align-items: stretch; }
+  .search-main .search-term,
+  .search-main .search-select,
+  .search-main .btn { flex: 0 0 auto; width: 100%; min-width: 0; }
+  .search-field { flex-basis: 100%; }
+}
+
 /* ---------------- form controls ---------------- */
 
-input[type="url"], input[type="text"], input[type="password"], textarea {
+input[type="url"], input[type="text"], input[type="password"], input[type="search"],
+select, textarea {
   width: 100%;
   padding: 10px 12px;
   background: var(--bg-input);
@@ -150,6 +249,27 @@ input[type="url"], input[type="text"], input[type="password"], textarea {
   color: var(--text);
   font-family: inherit; font-size: 0.9rem;
 }
+
+/* The native control paints its own arrow in the system colour and its own
+   background on the options, both of which come out light on this dark panel.
+   Only the closed control can be restyled - the open list belongs to the OS -
+   so the arrow is drawn here as a background image instead. */
+select {
+  appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%2399a1b3' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 11px;
+  cursor: pointer;
+}
+select option { background: var(--bg-raised); color: var(--text); }
+
+/* Safari and Chrome add a cancel affordance and a magnifier to type=search;
+   both land in the middle of the field's own padding here. */
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-results-button { display: none; }
+input[type="search"]::-webkit-search-cancel-button { filter: invert(0.6); cursor: pointer; }
 textarea { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.82rem; resize: vertical; }
 
 input:focus, textarea:focus {
@@ -212,6 +332,17 @@ textarea::-webkit-scrollbar-thumb:hover,
    are edged with, so the button and the panel it opens read as one thing. */
 .btn-warn { background: var(--warn); border-color: var(--warn); color: #14161b; font-weight: 600; }
 .btn-warn:hover:not(:disabled) { background: #edc463; border-color: #edc463; }
+
+/* The way out of this tool, and the reason it exists - so it is filled, in the
+   one colour nothing else on the page uses, and it sits to the left of Download
+   in every place both appear. Download is deliberately left as a plain .btn
+   beside it: it is still there for anyone who wants a backup file, but it is no
+   longer a step anybody has to take.
+     Green rather than the accent blue because the accent already means "the
+   button that runs this panel" (Convert, Convert selected), and an import is
+   not another one of those - it is the finish. */
+.btn-import { background: var(--ok); border-color: var(--ok); color: #10241a; font-weight: 600; }
+.btn-import:hover:not(:disabled) { background: #6ed99a; border-color: #6ed99a; }
 
 .btn-ghost { background: none; border-color: var(--border); color: var(--text-dim); }
 .btn-small { padding: 6px 11px; font-size: 0.8rem; }

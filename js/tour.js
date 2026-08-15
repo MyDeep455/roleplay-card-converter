@@ -26,7 +26,7 @@ const $ = id => document.getElementById(id);
 /* Bumping this shows the tour again to people who have already seen it. Worth
    doing when a step describes something that has genuinely changed; not worth
    doing for wording. */
-const TOUR_VERSION = 1;
+const TOUR_VERSION = 2;   // 2: searching moved into the tool; pasting became optional
 
 /* ---------------- the script ---------------- */
 
@@ -45,57 +45,62 @@ const STEPS = [
     place: 'center',
     label: 'Welcome',
     title: 'Grab characters to chat with!',
-    body: 'Here you can download countless character cards from other platforms for free. '
-        + 'This tool auto-converts their data and creates a character card for you to use '
-        + 'in Casual Character Chat. First conversion might take a minute, then it converts fast.',
+    body: 'Search chub.ai, Character Tavern and JanitorAI from right here — no tabs, no copying links. '
+        + 'Pick the ones you like and they are converted and sent straight into Casual Character Chat. '
+        + 'First conversion might take a minute, then it converts fast.',
   },
   {
-    target: '.browse-links',
+    target: '.search-main',
     place: 'bottom',
     label: 'Step 1',
-    title: 'Find characters you like',
-    body: 'Open any of these three sites and browse for any characters, then copy '
-        + 'the address (URL) out of your browser’s address bar at the top of your screen.',
+    title: 'Search without leaving',
+    body: 'Pick a site on the left, type what you are after, and press Search — the same words you '
+        + 'would have typed on the site itself. Leave the box empty to just browse. '
+        + 'The sort menu on the right is that site’s own ordering, so it changes with the site.',
   },
   {
-    target: '#url-input',
+    target: '.search-filters',
     place: 'bottom',
     label: 'Step 2',
-    title: 'Paste the link in here',
-    body: 'One link, or multiple links beneath each other - both are possible. '
-        + 'Works for single characters as well as for a whole search page.',
-  },
-  {
-    target: '#convert-btn',
-    place: 'right',
-    label: 'Step 3',
-    title: 'Convert',
-    body: 'Single characters are converted immediately when you click the Convert button. A search '
-        + 'or category page instead fills the grid below for you to select.',
+    title: 'Narrow it down',
+    body: 'Tags to require, tags to shut out, and whether to include adult cards. Separate several '
+        + 'tags with commas. These follow the site too — JanitorAI has no tag boxes because its '
+        + 'search ignores them, and anything a site cannot do is hidden rather than left to fail.',
   },
   {
     target: '#bulk-grid',
     place: 'top',
-    label: 'In bulk',
-    title: 'You can download right away!',
-    body: 'It is already showing you chub.ai’s trending characters right now — tick the ones you want and convert in one click. '
+    label: 'Step 3',
+    title: 'Tick what you like',
+    body: 'Results land here — it is already showing chub.ai’s trending characters. Tick the ones you '
+        + 'want and convert them in one click. '
         + 'Note: Some platforms (such as chub.ai) block NSFW adult content for users outside the U.S. '
         + 'You’ll need to use a VPN (e.g. NordVPN) to see all unfiltered NSFW characters there.',
-  }, 
+  },
+  {
+    target: '.url-fallback',
+    place: 'bottom',
+    label: 'Optional',
+    title: 'Already have a link?',
+    body: 'You never have to leave, but you still can. Open this to paste a card’s address — one link, '
+        + 'or many beneath each other — or a search page you set up on the site yourself. '
+        + 'It is the only way to grab one specific card you already have open.',
+  },
   {
     target: '.results-head',
     place: 'bottom',
     label: 'Step 4',
-    title: 'Download, then import. Finished!',
-    body: 'Converted cards stay here in your browser until you clear them. '
-        + 'Simply load them into Casual Character Chat with the “Import Data” button.',
+    title: 'Import. Finished!',
+    body: 'Press “Import” on a card, or “Import all”, and it goes straight into Casual Character Chat — '
+        + 'no file to save, nothing to open. Converted cards also stay here in your browser until you clear them, '
+        + 'and “Download” is still there if you want a backup file of your own.',
   },
   {
     target: null,
     place: 'center',
     label: 'Ready',
     title: 'That’s the whole loop',
-    body: 'Copy any link → convert it → download → import.  '
+    body: 'Search → tick → convert → import.  '
         + 'You can replay this tour any time from the Tour button up top.',
   },
 ];

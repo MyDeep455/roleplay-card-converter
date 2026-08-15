@@ -1,29 +1,48 @@
-# Roleplay Card Converter
+# Character Card Browser
 
-Downloads character cards from **chub.ai**, **character-tavern.com** and **janitorai.com** and
-converts them into the
-[Casual Character Chat](https://github.com/MyDeep455/casual-character-chat-app) JSON format, ready to
-import.
+Search **chub.ai**, **character-tavern.com** and **janitorai.com** from one page, convert what you
+like, and put it straight into
+[Casual Character Chat](https://github.com/MyDeep455/casual-character-chat-app) — no file to save and
+no import dialog to go through.
 
-### ▶ [Open the converter](https://MyDeep455.github.io/roleplay-card-converter/)
+### ▶ [Open it](https://MyDeep455.github.io/roleplay-card-converter/)
 
 Nothing to install, nothing to sign up for. It runs entirely in your browser.
+
+> Formerly the *Roleplay Card Converter*. The address is unchanged, so existing links and the button
+> inside Casual Character Chat keep working.
 
 ---
 
 ## What it does
 
-Paste any chub.ai, Character Tavern or JanitorAI link into the one box and press **Convert**. What you
-pasted decides what happens — there is nothing to choose first:
+**Search all three sites without leaving.** Pick a site, type what you are after, press **Search**.
+The tool writes that site's own search URL and mirrors the results into a grid — tick what you want
+and convert it.
+
+| Control | What it does |
+|---|---|
+| **Site** | chub.ai, Character Tavern or JanitorAI. Switching re-runs the search on the new site. |
+| **Search box** | The same words you would have typed on the site. Leave it empty to just browse. |
+| **Sort** | That site's own orderings — 13 on chub, 4 on Character Tavern, 7 on JanitorAI. |
+| **Tags / Exclude** | Comma-separated. Must have / must not have. |
+| **Content** | Include NSFW, hide it, or show only it. |
+
+Controls a site cannot honour are hidden rather than shown dead — JanitorAI gets no tag boxes,
+because its API accepts them and then ignores them.
+
+**Pasting still works**, and is folded away under *Or paste a link*. It is the only way to grab one
+specific card you already have open, and the only one that takes a list:
 
 | What you paste | What you get |
 |---|---|
 | A **card** link | Converted straight away |
-| A **search** or browse link | A grid of what it found; tick the ones you want |
+| A **search** or browse link | A grid of what it found; the panel above moves onto it |
 | **Several card links**, one per line | The same grid, everything preselected |
 
-Converted cards are kept in your browser's own storage until you clear them, and downloaded as a
-Casual Character Chat backup file — one card at a time, or all of them in a single file.
+Converted cards are kept in your browser's own storage until you clear them. Press **Import** on any
+one of them — or **Import all** — and it lands in Casual Character Chat directly. **Download** is
+still offered beside it for anyone who wants a backup file of their own, but nothing needs one.
 
 **Your data stays yours.** There is no account, no server storing anything, and nothing is uploaded.
 The tool talks to the three card sites and to nothing else. Converted cards live in your browser's
@@ -33,19 +52,39 @@ IndexedDB on your own machine.
 
 ## Using it
 
+### Searching
+
+Type in the box and press **Search** (or Enter). Changing the site, the sort or the content filter
+re-runs the search on its own, because the panel is meant to describe the grid underneath it rather
+than sit above stale results.
+
+The tool builds the site's real search URL, so the link under the grid opens the same search on the
+site itself — nothing here is a private format.
+
+**Each site is its own thing, and the panel follows it rather than papering over the differences:**
+
+- **chub.ai** has the deepest filtering: 13 sort orders, tags and excluded tags (`topics` /
+  `excludetopics`), and separate NSFW/NSFL switches.
+- **Character Tavern** honours three sort orders and no more — *Trending*, *Newest* and *Oldest*.
+  Every other value is accepted and quietly ignored, so only those are offered. Its *Trending* is
+  about thirty hand-picked cards rather than an ordering of the library, so it is never the default
+  and a search that empties because of it says so.
+- **JanitorAI** has sort and a SFW/NSFW mode, and no working tag filter at all. It also needs a
+  token to search — see [Tokens](#tokens).
+
 ### A single card
 
-Paste the card's page URL and press **Convert**:
+Open *Or paste a link*, paste the card's page URL, press **Convert**:
 
 - `https://chub.ai/characters/author/character-name`
 - `https://character-tavern.com/character/author/card_name`
 - `https://janitorai.com/characters/<id>_character-name`
 
-### A whole search
+### A whole search you set up on the site
 
-Set your search up on the site first, then copy the URL out of the address bar. The whole query
-string is carried over — search terms, tags, excluded tags, sort order, lorebook/OC toggles, token
-ranges. If the URL names a page (`&page=3`), it starts there.
+Paste that too. The whole query string is carried over — search terms, tags, excluded tags, sort
+order, lorebook/OC toggles, token ranges. If the URL names a page (`&page=3`), it starts there. The
+panel above fills itself in from whatever you pasted, so the two never contradict each other.
 
 You get a plain grid — avatar, name, tagline, creator — with checkboxes. Tick what you want and press
 **Convert selected**. Star counts, downloads, ratings and comments are never read and never reach the
@@ -69,10 +108,28 @@ first — take the file straight to the app.
 
 ### Getting cards into Casual Character Chat
 
-In the app: **Import → Backup (.json)** → pick the file → confirm.
+Press **Import** on a card, or **Import all** above the list. The card goes into the app's own
+storage as it arrives — nothing is written to disk and there is nothing to pick out of a downloads
+folder afterwards.
 
-Use **Backup**, not *Character Card*. The file is already in the app's own format; the character-card
-path would run it through the app's converter a second time and drop the gallery and lorebook entries.
+The two halves talk over `postMessage`, which is why this works at all: a converted card carries its
+avatar and gallery as embedded images and routinely runs to several megabytes, far past what a URL
+could ever carry. Cards only travel one way, and the app never sends anything back but a count of
+what it added.
+
+**The short way round.** Open it from inside Casual Character Chat — the **🃏 Browse Characters**
+button, next to *Create Character*. The app then knows the tool and the tool knows where to answer,
+so importing takes one press and puts you back in the tab you started in.
+Opening it on its own also works; it opens the app itself the first time you press Import,
+and the app asks you to confirm before letting the cards in.
+
+Importing the same card twice is harmless — the app skips anything whose id it already holds rather
+than overwriting your copy.
+
+If pop-ups are blocked, the browser will stop the app's tab from opening. Allow pop-ups for the site,
+or fall back to **Download** and the app's own **Import Data** button. Use **Backup**, not *Character
+Card*, if you go that way: the file is already in the app's own format, and the character-card path
+would run it through the app's converter a second time and drop the gallery and lorebook entries.
 
 ---
 
@@ -239,6 +296,9 @@ window — it serves the first page of results and refuses every page after it, 
 outright, and returns `null` for every character definition, so cards convert into name-and-avatar
 shells. Signed in, all of it works.
 
+Because a search there fails outright rather than returning less, the search panel says so as soon
+as JanitorAI is selected, instead of letting the search run and report an error.
+
 The tool cannot fetch that token for you, and not for lack of trying — browsers seal each site's
 cookies off from every other site, JanitorAI answers with `Access-Control-Allow-Origin: *` (which
 browsers refuse for credentialed requests, so its login cannot be borrowed), and it refuses to be
@@ -270,11 +330,13 @@ index.html                 UI
 style.css                  styling
 js/config.js               the one file you may need to edit (hosted proxy URL)
 js/transport.js            fetching; one host proxied, everything else direct
-js/adapters.js             chub.ai, Character Tavern and JanitorAI
+js/adapters.js             chub.ai, Character Tavern and JanitorAI: fetching, plus
+                           the `search` descriptor each one builds its search URLs from
 js/convert.js              card -> Casual Character Chat schema
 js/media.js                PNG card extraction, WebP re-encoding
 js/db.js                   IndexedDB (cards + settings)
-js/app.js                  UI wiring and the conversion pipelines
+js/app.js                  UI wiring, the search panel, and the conversion pipelines
+js/ccc-link.js             handing converted cards to Casual Character Chat
 
 proxy.js                   serves the tool + proxies the one blocked endpoint, zero dependencies
 render.yaml                one-click deploy of the above

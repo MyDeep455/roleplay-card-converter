@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Roleplay Card Converter</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235b7fff'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='15' font-weight='bold' fill='white' text-anchor='middle'%3ER%3C/text%3E%3C/svg%3E" />
+<title>Character Card Browser</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%235b7fff'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='15' font-weight='bold' fill='white' text-anchor='middle'%3EC%3C/text%3E%3C/svg%3E" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
 <header class="topbar">
   <div class="brand">
-    <span class="brand-mark">RCC</span>
+    <span class="brand-mark">CCB</span>
     <div>
-      <h1>Roleplay Card Converter</h1>
-      <p class="sub">Convert &rarr; Download &rarr; Import</p>
+      <h1>Character Card Browser</h1>
+      <p class="sub">Search &rarr; Convert &rarr; Import</p>
     </div>
   </div>
   <div class="topbar-actions">
@@ -29,23 +29,74 @@
 <main>
 
   <section class="panel">
-    <h2>Convert & download Characters</h2>
+    <h2>Browse Characters</h2>
     <p class="browse-links">
-      Browse
-      <a href="https://chub.ai/characters?sort=trending" target="_blank" rel="noopener noreferrer">chub.ai</a> or
-      <a href="https://character-tavern.com/search/cards" target="_blank" rel="noopener noreferrer">Character Tavern</a> or
-      <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer">JanitorAI</a>
-      &rarr; copy character URL from the adress bar on top of your screen &rarr; paste it below &rarr; click "Convert"
+      Search <strong>chub.ai</strong>, <strong>Character Tavern</strong> and <strong>JanitorAI</strong> from right here
+      &rarr; tick the characters you like &rarr; convert &rarr; import into Casual Character Chat.
     </p>
-    <p></p>
-    <div class="row">
-      <!-- Line breaks inside an attribute have to be &#10; - a <br /> would show
-           up as those five literal characters. & must be &amp; for the same
-           reason: it starts an entity wherever it appears. -->
-      <textarea id="url-input" rows="8" spellcheck="false"
-        placeholder="character card URLs:&#10;e.g. https://chub.ai/characters/Anonymous/alice-the-bully-40f0cc011ae1&#10;e.g. https://character-tavern.com/character/makima/Alice%20the%20bully&#10;&#10;or whole search URL:&#10;e.g. https://chub.ai/characters?sort=trending"></textarea>
-      <button id="convert-btn" class="btn btn-primary">Convert</button>
+
+    <!-- ---------------------------------------------------------------
+         THE SEARCH PANEL
+         Every control is drawn from the chosen adapter's own `search`
+         descriptor rather than written out here, because the three sites do
+         not agree on what can be filtered: JanitorAI's API ignores tags
+         entirely, and Character Tavern honours three sort orders where chub
+         honours twenty-two. So the sort menu is repopulated and the tag boxes
+         are shown or hidden per platform by app.js. What is here is only the
+         shell those choices are poured into.
+         --------------------------------------------------------------- -->
+    <div class="search-panel">
+      <div class="search-main">
+        <select id="search-platform" class="search-select" aria-label="Platform"></select>
+        <input id="search-term" class="search-term" type="search" autocomplete="off" spellcheck="false"
+          placeholder="Search characters by name, or leave empty to just browse" />
+        <select id="search-sort" class="search-select" aria-label="Sort by"></select>
+        <button id="search-btn" class="btn btn-primary">Search</button>
+      </div>
+
+      <div class="search-filters">
+        <label class="search-field" id="search-tags-field">
+          <span>Tags</span>
+          <input id="search-tags" type="text" autocomplete="off" spellcheck="false" placeholder="fantasy, romance" />
+        </label>
+        <label class="search-field" id="search-exclude-field">
+          <span>Exclude</span>
+          <input id="search-exclude" type="text" autocomplete="off" spellcheck="false" placeholder="gore" />
+        </label>
+        <label class="search-field" id="search-nsfw-field">
+          <span>Content</span>
+          <select id="search-nsfw">
+            <option value="include">Include NSFW</option>
+            <option value="exclude">Hide NSFW</option>
+            <option value="only">NSFW only</option>
+          </select>
+        </label>
+        <button id="search-reset" class="btn btn-small btn-ghost">Reset filters</button>
+      </div>
+
+      <!-- Filled by app.js when the chosen platform cannot do what the panel
+           appears to offer - JanitorAI refusing to search without a token is
+           the case that matters, because it fails rather than returning less. -->
+      <p id="search-note" class="search-note hidden"></p>
     </div>
+
+    <!-- ---------------------------------------------------------------
+         Pasting is now the fallback rather than the way in, so it is folded
+         away instead of being the first thing on the page. It is still the
+         only route for a specific card someone already has open, and the only
+         one that takes a list, so it is one click away and never further.
+         --------------------------------------------------------------- -->
+    <details id="url-fallback" class="url-fallback">
+      <summary>Or paste a link &mdash; a single card, several cards, or a search page you set up on the site</summary>
+      <div class="row">
+        <!-- Line breaks inside an attribute have to be &#10; - a <br /> would show
+             up as those five literal characters. & must be &amp; for the same
+             reason: it starts an entity wherever it appears. -->
+        <textarea id="url-input" rows="5" spellcheck="false"
+          placeholder="character card URLs:&#10;e.g. https://chub.ai/characters/Anonymous/alice-the-bully-40f0cc011ae1&#10;e.g. https://character-tavern.com/character/makima/Alice%20the%20bully&#10;&#10;or whole search URL:&#10;e.g. https://chub.ai/characters?sort=trending"></textarea>
+        <button id="convert-btn" class="btn btn-primary">Convert</button>
+      </div>
+    </details>
 
     <div id="bulk-status" class="status"></div>
 
@@ -99,13 +150,15 @@
   <div class="results-head">
     <h2>Converted cards <span id="results-count" class="chip">0</span></h2>
     <div class="results-actions">
+      <button id="import-all" class="btn btn-import">Import all into Casual Character Chat</button>
       <button id="download-all" class="btn">Download all as one file</button>
       <button id="clear-all" class="btn btn-danger">Clear all</button>
     </div>
   </div>
 
-  <p class="hint">Stored in your browser and kept until you clear them. Import downloaded files into
-    Casual Character Chat with the <strong>"Import Data"</strong> button.</p>
+  <p class="hint"><strong>Import</strong> puts a card straight into Casual Character Chat &mdash; no file, nothing to
+    save or open. Stored here in your browser as well, and kept until you clear them.
+    <strong>Download</strong> is there if you also want a backup file of your own.</p>
 
   <!-- Shown whenever a card converts without its greeting or description. Left
        in the results section rather than the status line because the status is
