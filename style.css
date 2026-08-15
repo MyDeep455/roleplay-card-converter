@@ -356,20 +356,62 @@ textarea::-webkit-scrollbar-thumb:hover,
 .status.ok    { color: var(--ok); }
 .status.error { color: var(--danger); white-space: pre-wrap; }
 
+/* ---------------- busy ring ---------------- */
+
+/* Three places show it: beside a busy status line, inside the button that
+   started the work, and in the conversion progress row.
+     The wait it covers is a request to somebody else's server, so it can be
+   four seconds or forty, and until now all of it was spent looking at a line of
+   text - which says the same thing whether the answer is one second away or
+   never coming. A ring that turns is the one part of that which cannot be
+   stale, so the page reads as working rather than as finished-and-disappointing.
+     Drawn as a spun border rather than an image so it takes its colour from
+   whatever it sits in: three sides of currentColor, the fourth left open. */
+.spinner,
+.btn.is-busy::before {
+  display: inline-block;
+  width: 0.85em; height: 0.85em;
+  margin-right: 0.5em;
+  vertical-align: -0.08em;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Only the pseudo-element needs conjuring into existence. Kept out of the rule
+   above because `content` on an ordinary element is not inert in every browser. */
+.btn.is-busy::before { content: ''; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* The button says it itself, because the status line is not always where the
+   eye is - the lower toolbar sits a full grid below the line it writes to.
+     A busy button is disabled, and the ordinary disabled fade would take the
+   ring down to nearly nothing with it, so this one stays legible. The cursor
+   says waiting rather than refused. */
+.btn.is-busy:disabled { opacity: 0.75; cursor: progress; }
+
+/* A flex item here rather than inline text, so it is told not to shrink - and
+   the row's own gap replaces the margin the other two placements need. */
+.progress .spinner { flex: 0 0 auto; margin-right: 0; color: var(--accent); }
+
+/* Rotation is the thing being asked about here, so under reduced motion the
+   ring stops turning and breathes instead - still unmistakably live, but
+   nothing on screen travels. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .btn.is-busy::before { animation: busy-pulse 1.4s ease-in-out infinite; }
+}
+
+@keyframes busy-pulse { 50% { opacity: 0.3; } }
+
 .chip {
   display: inline-block;
   padding: 2px 9px; border-radius: 999px;
   background: var(--bg-input); border: 1px solid var(--border);
   color: var(--text-dim); font-size: 0.78rem;
 }
-
-/* ---------------- browse links ---------------- */
-
-.browse-links { margin: 12px 0 0; color: var(--text-dim); font-size: 0.85rem; }
-.browse-links a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
-.browse-links a:hover { border-bottom-color: var(--accent); }
-/* Marks them as leaving the tool, so nobody expects an in-page browser. */
-.browse-links a::after { content: " \2197"; font-size: 0.85em; }
 
 /* ---------------- current source ---------------- */
 
@@ -887,7 +929,7 @@ textarea::-webkit-scrollbar-thumb:hover,
 
   /* The 12px labels that read as quiet on a monitor read as unreadable here,
      so every one of them goes up a step. */
-  .hint, .browse-links, .status, .bulk-source { font-size: 0.9rem; }
+  .hint, .status, .bulk-source { font-size: 0.9rem; }
   .bulk-hint { font-size: 0.92rem; }
   .chip { font-size: 0.8rem; padding: 3px 10px; }
 

@@ -14,7 +14,7 @@
  *
  * Positions are recomputed every frame while the tour is open rather than
  * once per step. The page underneath is still live - images finish loading,
- * the trending grid arrives, the window gets resized, the user scrolls - and
+ * the opening grid arrives, the window gets resized, the user scrolls - and
  * anything that shifts a target would otherwise leave the highlight sitting
  * over empty space.
  * ========================================================================= */
@@ -72,8 +72,8 @@ const STEPS = [
     place: 'top',
     label: 'Step 3',
     title: 'Tick what you like',
-    body: 'Results land here — it is already showing chub.ai’s trending characters. Tick the ones you '
-        + 'want and convert them in one click. '
+    body: 'Results land here — a first page of chub.ai characters is already waiting, before you have '
+        + 'searched for anything. Tick the ones you want and convert them in one click. '
         + 'Note: Some platforms (such as chub.ai) block NSFW adult content for users outside the U.S. '
         + 'You’ll need to use a VPN (e.g. NordVPN) to see all unfiltered NSFW characters there.',
   },
@@ -614,7 +614,7 @@ export async function maybeStartTour() {
   }
   if (seen >= TOUR_VERSION) return;
 
-  // One frame of grace so the trending grid's placeholder tiles are laid out
+  // One frame of grace so the opening grid's placeholder tiles are laid out
   // before the highlight measures anything.
   requestAnimationFrame(() => startTour());
 }

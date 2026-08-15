@@ -64,11 +64,13 @@ site itself — nothing here is a private format.
 **Each site is its own thing, and the panel follows it rather than papering over the differences:**
 
 - **chub.ai** has the deepest filtering: 13 sort orders, tags and excluded tags (`topics` /
-  `excludetopics`), and separate NSFW/NSFL switches.
+  `excludetopics`), and separate NSFW/NSFL switches. It sorts by *Relevance* unless told otherwise.
+  Its *Trending* is a couple of hundred cards picked out right now rather than an ordering of the
+  36,000-odd it holds, and a search term intersected with that shelf reliably finds nothing — so it
+  is never the default, and a search that empties because of it says so.
 - **Character Tavern** honours three sort orders and no more — *Trending*, *Newest* and *Oldest*.
   Every other value is accepted and quietly ignored, so only those are offered. Its *Trending* is
-  about thirty hand-picked cards rather than an ordering of the library, so it is never the default
-  and a search that empties because of it says so.
+  the same kind of shelf as chub's, about thirty hand-picked cards, and is treated the same way.
 - **JanitorAI** has sort and a SFW/NSFW mode, and no working tag filter at all. It also needs a
   token to search — see [Tokens](#tokens).
 

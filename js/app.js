@@ -25,6 +25,7 @@ const $ = id => document.getElementById(id);
 const $$ = sel => [...document.querySelectorAll(sel)];
 const setText = (sel, text) => $$(sel).forEach(el => { el.textContent = text; });
 const setDisabled = (sel, off) => $$(sel).forEach(el => { el.disabled = off; });
+const setBusyAll = (sel, busy) => $$(sel).forEach(el => setBusy(el, busy));
 const onAll = (sel, event, fn) => $$(sel).forEach(el => el.addEventListener(event, fn));
 
 // Both toolbars appear and disappear with the grid they belong to.
@@ -70,6 +71,46 @@ const state = {
 function setStatus(el, message, kind = '') {
   el.textContent = message;
   el.className = `status ${kind}`;
+
+  // A busy line gets the ring in front of it. These messages are written the
+  // moment a request goes out and left there until it lands, so on their own
+  // they cannot say whether the tool is still asking or gave up quietly a
+  // minute ago - which is the whole question anybody staring at one has.
+  if (kind === 'busy' && message) el.prepend(busyRing());
+}
+
+function busyRing() {
+  const ring = document.createElement('span');
+  ring.className = 'spinner';
+  ring.setAttribute('aria-hidden', 'true');   // the status text is the message
+  return ring;
+}
+
+/**
+ * Mark the control that started something as still waiting on it.
+ *
+ * Disabled at the same time, and deliberately in the same call: a control that
+ * is visibly working and still pressable invites the second press that starts a
+ * second copy of the work.
+ */
+function setBusy(el, busy) {
+  if (!el) return;
+  el.classList.toggle('is-busy', busy);
+  el.disabled = busy;
+}
+
+/**
+ * A mirror is in flight.
+ *
+ * Both buttons that can start one go out of service for the duration, since
+ * either would throw away the page being fetched; only the one actually pressed
+ * carries the ring. The other is not working - it is merely unavailable, and a
+ * ring on it would claim otherwise.
+ */
+function setMirrorBusy(trigger, busy) {
+  $('search-btn').disabled = busy;
+  $('convert-btn').disabled = busy;
+  if (trigger) trigger.classList.toggle('is-busy', busy);
 }
 
 // A card the site refuses looks identical to one that does not exist, and the
@@ -132,7 +173,10 @@ async function importToCcc(button, load, describe) {
     return false;
   }
 
-  button.disabled = true;
+  // The label already says what is happening; the ring says it is still
+  // happening, which matters here because the wait is on another tab answering
+  // and there is nothing else on this page to watch.
+  setBusy(button, true);
   button.textContent = 'Importing…';
 
   try {
@@ -162,7 +206,7 @@ async function importToCcc(button, load, describe) {
     showToast(describeError(err), 'warn');
     return false;
   } finally {
-    button.disabled = false;
+    setBusy(button, false);
     button.textContent = label;
   }
 }
@@ -439,17 +483,19 @@ function writeCriteria(c) {
  * The three sites share almost no sort values - chub says `created_at` where
  * JanitorAI says `created` and Character Tavern says `newest` - so switching
  * platform cannot simply keep the string. It keeps the *label* instead, so
- * someone reading "Trending" who switches sites is still reading Trending
+ * someone reading "Newest" who switches sites is still reading Newest
  * afterwards, and only falls back to the platform default when the ordering
  * they were on does not exist there at all.
  *
  * An ordering the adapter has flagged as `narrows` is never arrived at this
- * way, only chosen. The two sites use "Trending" for different things - chub
- * orders the whole library by it, Character Tavern hand-picks about thirty
- * cards - so carrying the word across would land someone on a shelf too small
- * to search, and it would happen on the most ordinary move there is, since the
- * tool opens on chub's Trending to begin with. Picking it deliberately still
- * works; drifting into it does not.
+ * way, only chosen. "Trending" on both chub and Character Tavern turns out to
+ * be a shelf of a few hundred cards rather than an ordering of the library, and
+ * a search term intersected with a shelf that size is reliably nothing at all -
+ * so carrying the word across would hand someone an empty grid for a search
+ * that works. Picking it deliberately still works; drifting into it does not.
+ *
+ * All three platforms open on Relevance, so the ordinary move - change site,
+ * search again - keeps the ordering someone never touched.
  */
 function populateSortMenu(adapter, keepLabel = '') {
   const sel = $('search-sort');
@@ -547,7 +593,11 @@ function runSearch() {
 
   // Straight to the mirror, exactly as a pasted search link would have gone.
   // Page 1 always: this is a new search, not a continuation of one.
-  return startMirror(1, url, narrowingHint(adapter, criteria));
+  //
+  // Search is named as the trigger so it wears the ring, including when it was
+  // not the thing pressed - changing site or ordering runs a search too, and
+  // the button is where anyone would look to see whether one is running.
+  return startMirror(1, url, narrowingHint(adapter, criteria), $('search-btn'));
 }
 
 /**
@@ -654,7 +704,7 @@ async function handleInput() {
 async function convertSingle(raw, adapter) {
   const status = $('bulk-status');
   const btn = $('convert-btn');
-  btn.disabled = true;
+  setBusy(btn, true);
   try {
     setStatus(status, `Fetching from ${adapter.label}...`, 'busy');
 
@@ -690,7 +740,7 @@ async function convertSingle(raw, adapter) {
   } catch (err) {
     setStatus(status, describeError(err), 'error');
   } finally {
-    btn.disabled = false;
+    setBusy(btn, false);
   }
 }
 
@@ -774,6 +824,15 @@ async function stepBulkPage(dir) {
   try {
     if (dir > 0 && b.feed.length < at + per && b.sourcePage < b.sourcePages) {
       setStatus(status, `Mirroring more of ${b.adapter.label}...`, 'busy');
+
+      // The page being left is cleared away for placeholders while the next one
+      // is fetched. Leaving it up was the quieter option and the wrong one:
+      // pressing Next and being shown the same twenty-four cards for four
+      // seconds reads as a button that did nothing, and the second press is
+      // then the one thing that actually costs a page.
+      //   Toolbars stay - they are the controls being waited on, and pulling
+      // them out from under the cursor would move everything below them.
+      renderSkeletons(per, { keepToolbars: true });
       await fillFeed(at + per);
       if (state.bulk !== b) return;
     }
@@ -791,7 +850,12 @@ async function stepBulkPage(dir) {
 
 // `emptyHint` is only ever read when the search comes back with nothing, and
 // only the panel passes one - a pasted URL has no controls to point at.
-async function startMirror(page, sourceUrl = null, emptyHint = '') {
+//
+// `trigger` is the button that started this, and only decides which one wears
+// the ring; both are taken out of service either way. It defaults to Convert
+// because that is the one in the paste box below, which is the caller that does
+// not pass anything.
+async function startMirror(page, sourceUrl = null, emptyHint = '', trigger = null) {
   const status = $('bulk-status');
   const raw = (sourceUrl || $('url-input').value).trim();
   if (!raw) return setStatus(status, 'Paste a link first.', 'error');
@@ -809,7 +873,13 @@ async function startMirror(page, sourceUrl = null, emptyHint = '') {
         : `Mirroring page ${page} of ${adapter.label}...`,
       'busy'
     );
-    $('convert-btn').disabled = true;
+    setMirrorBusy(trigger || $('convert-btn'), true);
+
+    // Placeholder tiles for the same reason the opening grid uses them: a
+    // search that replaces the grid has to look like it is being answered from
+    // the moment it is asked, and the shape of what is coming says that better
+    // than a line of text under the old results.
+    renderSkeletons(tilesPerPage());
 
     avatarGeneration++;          // a mirrored page carries its own thumbnails
 
@@ -843,8 +913,13 @@ async function startMirror(page, sourceUrl = null, emptyHint = '') {
     setStatus(status, bulkFoundMessage(state.bulk.items.length), 'ok');
   } catch (err) {
     setStatus(status, describeError(err), 'error');
+
+    // The placeholders above are standing where the previous grid was, and the
+    // previous grid is what state has just been rolled back to - so it is put
+    // back on screen rather than left as tiles that will never fill in.
+    renderBulkGrid();
   } finally {
-    $('convert-btn').disabled = false;
+    setMirrorBusy(trigger || $('convert-btn'), false);
   }
 }
 
@@ -964,8 +1039,8 @@ function hydrateListAvatars(items) {
  * -------------------------------------------------------------------------
  * An empty page with one text box does not say what the tool is for, and gives
  * someone nothing to try without leaving to find a link first. So a page of
- * chub's trending cards loads on its own - chub needs no proxy, so this works
- * even when the proxy is asleep, blocked or absent.
+ * chub's library loads on its own - chub needs no proxy, so this works even
+ * when the proxy is asleep, blocked or absent.
  *
  * Nothing is preselected and nothing is fetched beyond the listing itself:
  * these are suggestions, not work already started on someone's behalf.
@@ -1027,15 +1102,21 @@ window.addEventListener('resize', () => {
   }, 200);
 });
 
-function renderSkeletons(n) {
+// `keepToolbars` is for paging, which is the one case where what is on screen
+// is still the thing being worked on: the source line and the page controls go
+// on describing it truthfully while the next page arrives, and taking them away
+// would collapse the page around the button that was just pressed.
+function renderSkeletons(n, { keepToolbars = false } = {}) {
   const grid = $('bulk-grid');
   grid.innerHTML = '';
 
   // Nothing has arrived yet, so naming a source - or asking for a choice
   // between tiles that are still placeholders - would be premature.
-  $('bulk-source').classList.add('hidden');
-  $('bulk-hint').classList.add('hidden');
-  showToolbars(false);
+  if (!keepToolbars) {
+    $('bulk-source').classList.add('hidden');
+    $('bulk-hint').classList.add('hidden');
+    showToolbars(false);
+  }
   for (let i = 0; i < n; i++) {
     const el = document.createElement('div');
     el.className = 'bulk-card skeleton';
@@ -1051,7 +1132,7 @@ async function loadDiscover() {
   // the part worth showing, so the wait reads as a collection loading rather
   // than as an empty page that might stay empty.
   renderSkeletons(tilesPerPage());
-  setStatus(status, 'Loading trending characters from chub.ai...', 'busy');
+  setStatus(status, 'Loading characters from chub.ai...', 'busy');
 
   try {
     const { adapter } = adapterForUrl(DISCOVER_URL);
@@ -1263,7 +1344,16 @@ onAll('.js-bulk-convert', 'click', async () => {
 
   state.cancelBulk = false;
   progress.classList.remove('hidden');
-  setDisabled('.js-bulk-convert', true);
+
+  // Both copies of the button, and the ring on both: the toolbars are a grid
+  // apart and either one may be the one in view.
+  setBusyAll('.js-bulk-convert', true);
+
+  // The bar below fills a card at a time, so it can sit at the same width for
+  // several seconds on a slow card - and at 0% for the whole of the first one,
+  // which is exactly when someone is deciding whether the click registered.
+  text.textContent = `0 / ${chosen.length} - starting...`;
+  fill.style.width = '0%';
 
   let done = 0, failed = 0, partial = 0;
   const failures = [];
@@ -1306,7 +1396,7 @@ onAll('.js-bulk-convert', 'click', async () => {
 
   fill.style.width = '100%';
   progress.classList.add('hidden');
-  setDisabled('.js-bulk-convert', false);
+  setBusyAll('.js-bulk-convert', false);
   await renderResults();
   notePartialCards(partial);
 

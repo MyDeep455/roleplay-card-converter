@@ -256,9 +256,17 @@ const chub = {
     // `favorite_time`, `msgs_user` and friends - order by things the grid does
     // not show and nobody browses by, so they would be a longer menu for no
     // extra reach.
+    // Two of the thirteen are not orderings at all. All thirteen were run
+    // against the API bare and again with `search=elf`, and eleven of them
+    // answer identically - 36,473 cards bare, 558 for the term - because they
+    // sort the same library different ways. `trending` and `newcomer` answer
+    // 233 and 41 bare, and zero for the term: they are short shelves, and a
+    // term intersected with a shelf that size finds nothing. Both are flagged
+    // so they cannot be drifted into and so an empty grid explains itself.
     sorts: [
       { value: 'default',          label: 'Relevance' },
-      { value: 'trending',         label: 'Trending' },
+      { value: 'trending',         label: 'Trending',
+        narrows: 'Trending on chub.ai is a few hundred cards picked out right now rather than an ordering of the whole library, so a search term almost never survives it.' },
       { value: 'star_count',       label: 'Most stars' },
       { value: 'download_count',   label: 'Most downloads' },
       { value: 'n_favorites',      label: 'Most favourites' },
@@ -268,10 +276,17 @@ const chub = {
       { value: 'last_activity_at', label: 'Recently updated' },
       { value: 'msgs_chat',        label: 'Most messages' },
       { value: 'n_tokens',         label: 'Longest' },
-      { value: 'newcomer',         label: 'Newcomers' },
+      { value: 'newcomer',         label: 'Newcomers',
+        narrows: 'Newcomers on chub.ai is a shelf of a few dozen new creators rather than an ordering of the whole library, so a search term almost never survives it.' },
       { value: 'random',           label: 'Random' },
     ],
-    defaultSort: 'trending',
+    // Relevance rather than Trending, and not merely as a preference: Trending
+    // is a shelf of a couple of hundred cards, so it was answering every typed
+    // search on the tool's own default platform with nothing at all, and
+    // browsing it reached 233 of the 36,473 cards chub has. Relevance is the
+    // ordering a search actually wants - the cards that best match the words
+    // typed - and it is what the whole library is reachable through.
+    defaultSort: 'default',
 
     build(c) {
       const q = new URLSearchParams();
@@ -279,7 +294,9 @@ const chub = {
       q.set('namespace', 'characters');
       if (c.tags.length) q.set('topics', joinTags(c.tags));
       if (c.excludeTags.length) q.set('excludetopics', joinTags(c.excludeTags));
-      q.set('sort', chub.SORTS.has(c.sort) ? c.sort : 'trending');
+      // Same fallback as defaultSort above, so a criteria object carrying an
+      // ordering chub does not know lands where an untouched panel would.
+      q.set('sort', chub.SORTS.has(c.sort) ? c.sort : 'default');
 
       // Three flags rather than one. `nsfw` and `nsfl` decide what may appear;
       // `nsfw_only` throws away everything tame. Left explicit in all three
@@ -528,9 +545,10 @@ const characterTavern = {
     // them would be offering ten menu entries that quietly do nothing.
     sorts: [
       { value: '',         label: 'Relevance' },   // the site's own default; omitted from the URL
-      // Not an ordering over the whole library the way chub's trending is - it
-      // is a shelf of about thirty hand-picked cards, and a search term
-      // intersected with thirty cards is reliably nothing at all: `query=elf`
+      // Not an ordering over the whole library - it is a shelf of about thirty
+      // hand-picked cards, the same trap chub's Trending turns out to be at a
+      // couple of hundred, and a search term intersected with thirty cards is
+      // reliably nothing at all: `query=elf`
       // alone finds 150, and `query=elf&sort=trending` finds zero. So it
       // cannot be the default here, and when it does empty a search the panel
       // says which of the two to let go of.
@@ -867,9 +885,14 @@ const janitorai = {
       if (c.term) q.set('search', c.term);
 
       // Relevance orders by how well a card matches the words typed, so it is
-      // the right default with a term and meaningless without one.
-      const sort = janitorai.SORTS.has(c.sort) ? c.sort : (c.term ? 'relevance' : 'popular');
-      q.set('sort', sort);
+      // the right ordering with a term and meaningless without one - and that
+      // holds whether it was chosen or merely inherited. Inheriting it is now
+      // the ordinary way in: chub opens on Relevance, and switching platform
+      // carries the label across, so an empty box arriving here asks for
+      // Popular rather than for a ranking of nothing.
+      const asked = janitorai.SORTS.has(c.sort) ? c.sort : '';
+      const usable = asked && !(asked === 'relevance' && !c.term);
+      q.set('sort', usable ? asked : (c.term ? 'relevance' : 'popular'));
       q.set('mode', c.nsfw === 'only' ? 'nsfw' : c.nsfw === 'exclude' ? 'sfw' : 'all');
       q.set('page', '1');
       return `https://janitorai.com/search?${q}`;

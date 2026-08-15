@@ -30,18 +30,6 @@
 
   <section class="panel">
     <h2>Browse Characters</h2>
-    <!-- The three names are links to the sites themselves. Nothing here needs
-         them - every search runs in this page - but someone who wants to go and
-         look at a platform directly should not have to type its address. -->
-    <p class="browse-links">
-      Search
-      <a href="https://chub.ai/" target="_blank" rel="noopener noreferrer"><strong>chub.ai</strong></a>,
-      <a href="https://character-tavern.com/" target="_blank" rel="noopener noreferrer"><strong>Character Tavern</strong></a>
-      and
-      <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer"><strong>JanitorAI</strong></a>
-      from right here
-      &rarr; tick the characters you like &rarr; convert &rarr; import into Casual Character Chat.
-    </p>
 
     <!-- ---------------------------------------------------------------
          THE SEARCH PANEL
@@ -155,7 +143,11 @@
       </div>
     </div>
 
+    <!-- The ring is a sibling of the text rather than inside it: the text is
+         rewritten card by card with textContent, which would take a child with
+         it every time. -->
     <div id="bulk-progress" class="progress hidden">
+      <span class="spinner" aria-hidden="true"></span>
       <div class="progress-bar"><div id="bulk-progress-fill"></div></div>
       <div id="bulk-progress-text" class="progress-text"></div>
       <button id="bulk-cancel" class="btn btn-small btn-danger">Cancel</button>
