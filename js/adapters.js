@@ -6,7 +6,8 @@
  *   matchUrl(url)               does this adapter own the URL?
  *   isLibraryUrl(url)           library/search page rather than a single card?
  *   fetchCard(url, ctx)         one card  -> NormalizedCard
- *   listLibrary(url, page, ctx) a library page -> { items, page, totalPages, total }
+ *   listLibrary(url, page, ctx) a library page -> { items, page, totalPages, total,
+ *                                                   pageSize }
  *   search                      how to build one of those library URLs from a
  *                               filled-in form rather than a copied address bar
  *
@@ -23,6 +24,12 @@
  * adapter can actually reach - JanitorAI signed out serves one page and refuses
  * the rest, so for it that figure is one page long. Left out when the site does
  * not say; the caller then estimates from the page size.
+ *
+ * `pageSize` is how many cards a full page of this site holds - the number asked
+ * for, not the number that arrived. The caller multiplies it by the page count
+ * to sanity-check `total`, and the last page of a search is always short, so
+ * measuring it from a delivered page makes an entry at the end of a library
+ * report a library a third of its real size.
  *
  * A library `item` carries only what the mirror needs to draw a tile and fetch
  * the card later: name, tagline, avatar URL, creator. Star counts, download
@@ -355,6 +362,7 @@ const chub = {
       page,
       totalPages: Math.max(1, Math.ceil(count / pageSize)),
       total: count,
+      pageSize,
     };
   },
 };
@@ -400,11 +408,24 @@ const characterTavern = {
 
   avatarUrlFor(path) { return `${this.CARD_CDN}/${path}.png`; },
 
+  // The same file, asked for at tile size. What lives at that path is the whole
+  // character card - a full-resolution PNG with the definition embedded in it,
+  // routinely a megabyte or more - and a page of twenty-four of those is tens of
+  // megabytes to draw a grid of thumbnails 178px wide. The CDN resizes on
+  // request, so the grid asks for what it actually shows; these are the exact
+  // parameters character-tavern.com's own card grid uses. Measured over a page
+  // of 24: 2.3 MB becomes 0.6 MB, and the tiles stop sitting on their grey
+  // background waiting.
+  //
+  // Only ever for tiles. A conversion still fetches avatarUrlFor above, because
+  // the card being kept deserves the full image rather than a 400px copy of it.
+  thumbUrlFor(path) { return `${this.avatarUrlFor(path)}?width=400&quality=80&format=auto`; },
+
   // Same idea as chub's: the card PNG lives at a path derived from the page
   // URL, so it doubles as the thumbnail without asking the site anything.
   avatarFromCardUrl(u) {
     const path = this.pathFrom(u);
-    return path ? this.avatarUrlFor(path) : '';
+    return path ? this.thumbUrlFor(path) : '';
   },
 
   async fetchCard(url, ctx = {}) {
@@ -581,7 +602,7 @@ const characterTavern = {
         key: h.path,
         name: h.name,
         tagline: clean(h.tagline),
-        avatarUrl: this.avatarUrlFor(h.path),
+        avatarUrl: this.thumbUrlFor(h.path),
         cardUrl: `https://character-tavern.com/character/${h.path}`,
         creator: h.author,
       })),
@@ -590,6 +611,7 @@ const characterTavern = {
       // The search index has been through several names for this field, so all
       // three are tried before falling back to the caller's own estimate.
       total: res.totalHits ?? res.total ?? res.estimatedTotalHits ?? null,
+      pageSize: res.hitsPerPage || Number(q.get('limit')) || 24,
     };
   },
 };
@@ -915,6 +937,7 @@ const janitorai = {
       // And for the same reason the count signed out is this page, not the
       // figure the API quotes for a library it will not hand over.
       total: token ? total : nodes.length,
+      pageSize: size,
     };
   },
 

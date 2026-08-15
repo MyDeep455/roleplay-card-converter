@@ -17,6 +17,24 @@ import { connect, sendBackup, focusApp } from './ccc-link.js';
 
 const $ = id => document.getElementById(id);
 
+// The picker toolbar is on the page twice - once above the grid and once below
+// it - so that a page of four rows can be paged, selected and converted from
+// whichever end of it you happen to be at. Neither copy is the original: these
+// four reach every control carrying the class, so the pair is labelled, enabled
+// and listened to as one thing and cannot show two different answers.
+const $$ = sel => [...document.querySelectorAll(sel)];
+const setText = (sel, text) => $$(sel).forEach(el => { el.textContent = text; });
+const setDisabled = (sel, off) => $$(sel).forEach(el => { el.disabled = off; });
+const onAll = (sel, event, fn) => $$(sel).forEach(el => el.addEventListener(event, fn));
+
+// Both toolbars appear and disappear with the grid they belong to.
+const showToolbars = show =>
+  $$('.bulk-toolbar').forEach(el => el.classList.toggle('hidden', !show));
+
+// Six figures is normal for a chub search and "364720" is not a number anyone
+// reads at a glance, so counts are grouped in the reader's own locale.
+const fmt = n => Number(n).toLocaleString();
+
 // The picker holds a feed rather than one library page. The site's page size is
 // whatever the site says - 24 on chub, 34 on JanitorAI - and none of them is the
 // number of tiles four rows of this grid can hold, so pages are pulled in and
@@ -710,7 +728,15 @@ async function fillFeed(need) {
     const items = result.items || [];
     b.sourcePage = next;
     b.sourcePages = Math.max(result.totalPages || 1, next);
-    if (!b.sourcePageSize) b.sourcePageSize = items.length;
+
+    // What a full page of this site holds. The site's own figure first, because
+    // the page that arrived is not evidence of it: the last page of any search
+    // is a short one, so entering a library at its end - a pasted link to page
+    // 1520 of 1520 - used to teach this that pages were 16 cards long and report
+    // a 36,472-card search as 24,320. Falls back to the largest page actually
+    // seen, which can then only correct the figure upwards.
+    b.sourcePageSize = Math.max(b.sourcePageSize, result.pageSize || 0, items.length);
+
     if (!b.sourceTotal && result.total) b.sourceTotal = result.total;
 
     const fresh = items.filter(i => !b.keys.has(i.key));
@@ -727,8 +753,8 @@ async function fillFeed(need) {
 // Paging walks the feed rather than re-running the search, so editing the text
 // without pressing Convert cannot send you to a page of something else, and
 // stepping back costs nothing - those items are already here.
-$('bulk-prev').addEventListener('click', () => stepBulkPage(-1));
-$('bulk-next').addEventListener('click', () => stepBulkPage(1));
+onAll('.js-bulk-prev', 'click', () => stepBulkPage(-1));
+onAll('.js-bulk-next', 'click', () => stepBulkPage(1));
 
 async function stepBulkPage(dir) {
   const b = state.bulk;
@@ -738,11 +764,12 @@ async function stepBulkPage(dir) {
   const at = Math.max(0, b.offset + dir * per);
   const status = $('bulk-status');
 
-  // Both buttons go dead for the duration. A second press while a page is on
+  // Both buttons go dead for the duration - in both toolbars, or the copy that
+  // was left live would be the second press. A second press while a page is on
   // its way would leave two fills racing for the same place in the feed, and
   // the loser's cards would simply not be there.
-  $('bulk-prev').disabled = true;
-  $('bulk-next').disabled = true;
+  setDisabled('.js-bulk-prev', true);
+  setDisabled('.js-bulk-next', true);
 
   try {
     if (dir > 0 && b.feed.length < at + per && b.sourcePage < b.sourcePages) {
@@ -1008,7 +1035,7 @@ function renderSkeletons(n) {
   // between tiles that are still placeholders - would be premature.
   $('bulk-source').classList.add('hidden');
   $('bulk-hint').classList.add('hidden');
-  $('bulk-toolbar').classList.add('hidden');
+  showToolbars(false);
   for (let i = 0; i < n; i++) {
     const el = document.createElement('div');
     el.className = 'bulk-card skeleton';
@@ -1089,12 +1116,18 @@ function renderBulkSource() {
 // How many cards this search has to offer, not how many are on screen - the
 // grid holds four rows of them and the search is usually hundreds deep.
 //
-// Counted as what the site said, capped at what its own page count can actually
-// hold: JanitorAI signed out quotes a library of thousands and then serves one
-// page of it, and the number worth showing is the one that can be converted.
-// Sites that quote nothing are estimated from their pages instead.
+// Whatever the site said, with no ceiling of our own: chub answers a broad
+// search with six figures on a good connection, and a number that stopped
+// climbing would be read as the library ending there. The one case the figure
+// is held down is a site quoting a library it will not actually serve -
+// JanitorAI signed out quotes thousands and then hands over a single page - and
+// that is recognised by its page count, not by the size of the number. Sites
+// that quote nothing are estimated from their pages instead.
 function bulkTotalCards() {
   const b = state.bulk;
+
+  // What the site's own pagination can reach. Only meaningful once a page has
+  // actually arrived, and only a limit when it falls short of the quoted total.
   const reach = b.sourcePages * b.sourcePageSize;
   if (b.sourceTotal) return reach ? Math.min(b.sourceTotal, reach) : b.sourceTotal;
 
@@ -1107,20 +1140,20 @@ function bulkTotalCards() {
 function bulkFoundMessage(shown) {
   const total = bulkTotalCards();
   return total > shown
-    ? `${total} cards found - ${shown} on this page.`
-    : `${shown} cards.`;
+    ? `${fmt(total)} cards found - ${fmt(shown)} on this page.`
+    : `${fmt(shown)} cards.`;
 }
 
 // The site counts in its own pages and this grid counts in four rows, so the
 // figure is recut here. Never below the page being looked at, so the label
-// cannot say "Page 5 / 4" on the way through.
+// cannot say "Page 5 / 4" on the way through. Unbounded above: a six-figure
+// search really is tens of thousands of pages at twenty-four to a page.
 function bulkPageCount(per, page) {
   return Math.max(page, Math.ceil(bulkTotalCards() / per) || 1);
 }
 
 function renderBulkGrid() {
   const grid = $('bulk-grid');
-  const toolbar = $('bulk-toolbar');
   const b = state.bulk;
 
   // Pasted links are a list, not a library: there is no page after them, so all
@@ -1133,16 +1166,22 @@ function renderBulkGrid() {
   updateJaiInfo();
 
   if (!b.items.length) {
-    toolbar.classList.add('hidden');
+    showToolbars(false);
     return;
   }
-  toolbar.classList.remove('hidden');
+  showToolbars(true);
 
+  // Page numbers are left ungrouped on purpose. They are labels rather than
+  // quantities, and half the world groups thousands with a dot - where it does,
+  // "Page 1 / 1.520" reads as a decimal rather than as page 1 of 1520. The card
+  // count in the status line is a real quantity, and is grouped.
   const page = Math.floor(b.offset / per) + 1;
-  $('bulk-page').textContent = b.urlList ? `${b.items.length} URLs` : `Page ${page} / ${bulkPageCount(per, page)}`;
-  $('bulk-prev').disabled = b.urlList || b.offset === 0;
-  $('bulk-next').disabled = b.urlList ||
-    (b.offset + per >= b.feed.length && b.sourcePage >= b.sourcePages);
+  setText('.js-bulk-page', b.urlList
+    ? `${fmt(b.items.length)} URLs`
+    : `Page ${page} / ${bulkPageCount(per, page)}`);
+  setDisabled('.js-bulk-prev', b.urlList || b.offset === 0);
+  setDisabled('.js-bulk-next', b.urlList ||
+    (b.offset + per >= b.feed.length && b.sourcePage >= b.sourcePages));
 
   state.bulk.items.forEach(item => {
     const card = document.createElement('div');
@@ -1198,22 +1237,22 @@ function renderBulkGrid() {
 }
 
 function updateBulkCount() {
-  $('bulk-count').textContent = `${state.bulk.selected.size} selected`;
-  $('bulk-convert').disabled = state.bulk.selected.size === 0;
+  setText('.js-bulk-count', `${fmt(state.bulk.selected.size)} selected`);
+  setDisabled('.js-bulk-convert', state.bulk.selected.size === 0);
 }
 
-$('bulk-select-all').addEventListener('click', () => {
+onAll('.js-bulk-select-all', 'click', () => {
   state.bulk.items.forEach(i => state.bulk.selected.add(i.key));
   renderBulkGrid();
 });
-$('bulk-select-none').addEventListener('click', () => {
+onAll('.js-bulk-select-none', 'click', () => {
   state.bulk.selected.clear();
   renderBulkGrid();
 });
 
 $('bulk-cancel').addEventListener('click', () => { state.cancelBulk = true; });
 
-$('bulk-convert').addEventListener('click', async () => {
+onAll('.js-bulk-convert', 'click', async () => {
   const chosen = state.bulk.items.filter(i => state.bulk.selected.has(i.key));
   if (!chosen.length) return;
 
@@ -1224,7 +1263,7 @@ $('bulk-convert').addEventListener('click', async () => {
 
   state.cancelBulk = false;
   progress.classList.remove('hidden');
-  $('bulk-convert').disabled = true;
+  setDisabled('.js-bulk-convert', true);
 
   let done = 0, failed = 0, partial = 0;
   const failures = [];
@@ -1267,7 +1306,7 @@ $('bulk-convert').addEventListener('click', async () => {
 
   fill.style.width = '100%';
   progress.classList.add('hidden');
-  $('bulk-convert').disabled = false;
+  setDisabled('.js-bulk-convert', false);
   await renderResults();
   notePartialCards(partial);
 

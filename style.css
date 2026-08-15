@@ -403,6 +403,10 @@ textarea::-webkit-scrollbar-thumb:hover,
 }
 .bulk-toolbar-left, .bulk-toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
+/* The copy under the grid. The top one's margin already separates it from the
+   search panel above; this one needs the gap on the side facing the tiles. */
+.bulk-toolbar-bottom { margin: 14px 0 4px; }
+
 /* The track count is read back out of this by app.js, which caps it and cuts
    the page of results to exactly four full rows of whatever it settles on - so
    the number of columns is decided here and the number of tiles follows it,
@@ -911,15 +915,17 @@ textarea::-webkit-scrollbar-thumb:hover,
   }
   .bulk-toolbar-left, .bulk-toolbar-right { display: contents; }
 
-  #bulk-prev        { grid-row: 1; grid-column: 1; }
-  #bulk-page        { grid-row: 1; grid-column: 2; }
-  #bulk-next        { grid-row: 1; grid-column: 3; }
-  #bulk-select-all  { grid-row: 2; grid-column: 1; }
-  #bulk-count       { grid-row: 2; grid-column: 2; }
-  #bulk-select-none { grid-row: 2; grid-column: 3; }
-  #bulk-convert     { grid-row: 3; grid-column: 1 / -1; padding: 12px; font-size: 0.92rem; }
+  /* Placed by class, not by id: this toolbar exists twice - once above the grid
+     and once below it - so an id would only ever lay out the first of them. */
+  .js-bulk-prev        { grid-row: 1; grid-column: 1; }
+  .js-bulk-page        { grid-row: 1; grid-column: 2; }
+  .js-bulk-next        { grid-row: 1; grid-column: 3; }
+  .js-bulk-select-all  { grid-row: 2; grid-column: 1; }
+  .js-bulk-count       { grid-row: 2; grid-column: 2; }
+  .js-bulk-select-none { grid-row: 2; grid-column: 3; }
+  .js-bulk-convert     { grid-row: 3; grid-column: 1 / -1; padding: 12px; font-size: 0.92rem; }
 
-  #bulk-page, #bulk-count { align-self: center; text-align: center; }
+  .js-bulk-page, .js-bulk-count { align-self: center; text-align: center; }
 
   /* Labels wrap instead of pushing the toolbar wider than the screen, which is
      what nowrap does to "Clear selection" on a 320px phone. Grid rows stretch,

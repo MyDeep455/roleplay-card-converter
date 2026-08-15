@@ -30,8 +30,16 @@
 
   <section class="panel">
     <h2>Browse Characters</h2>
+    <!-- The three names are links to the sites themselves. Nothing here needs
+         them - every search runs in this page - but someone who wants to go and
+         look at a platform directly should not have to type its address. -->
     <p class="browse-links">
-      Search <strong>chub.ai</strong>, <strong>Character Tavern</strong> and <strong>JanitorAI</strong> from right here
+      Search
+      <a href="https://chub.ai/" target="_blank" rel="noopener noreferrer"><strong>chub.ai</strong></a>,
+      <a href="https://character-tavern.com/" target="_blank" rel="noopener noreferrer"><strong>Character Tavern</strong></a>
+      and
+      <a href="https://janitorai.com/" target="_blank" rel="noopener noreferrer"><strong>JanitorAI</strong></a>
+      from right here
       &rarr; tick the characters you like &rarr; convert &rarr; import into Casual Character Chat.
     </p>
 
@@ -104,21 +112,48 @@
 
     <p id="bulk-hint" class="bulk-hint hidden"></p>
 
+    <!-- ---------------------------------------------------------------
+         THE PICKER TOOLBAR, TWICE
+         A page is four rows of tiles, so the controls that act on it - change
+         page, select all, convert - are a full screen away from the bottom of
+         it. Someone working down a grid and then wanting the next page had to
+         scroll back up for a button they had just left behind, on every page.
+         So the same toolbar sits above and below the grid.
+
+         The two are identical markup and neither is the real one: every control
+         is found by its `js-` class, so app.js labels, enables and listens to
+         both at once and they cannot drift out of step. Ids are only on the
+         wrappers, for the tour and for showing/hiding.
+         --------------------------------------------------------------- -->
     <div id="bulk-toolbar" class="bulk-toolbar hidden">
       <div class="bulk-toolbar-left">
-        <button id="bulk-select-all" class="btn btn-small">Select all</button>
-        <button id="bulk-select-none" class="btn btn-small">Clear selection</button>
-        <span id="bulk-count" class="chip">0 selected</span>
+        <button class="btn btn-small js-bulk-select-all">Select all</button>
+        <button class="btn btn-small js-bulk-select-none">Clear selection</button>
+        <span class="chip js-bulk-count">0 selected</span>
       </div>
       <div class="bulk-toolbar-right">
-        <button id="bulk-prev" class="btn btn-small">&larr; Prev</button>
-        <span id="bulk-page" class="chip">Page 1</span>
-        <button id="bulk-next" class="btn btn-small">Next &rarr;</button>
-        <button id="bulk-convert" class="btn btn-primary">Convert selected</button>
+        <button class="btn btn-small js-bulk-prev">&larr; Prev</button>
+        <span class="chip js-bulk-page">Page 1</span>
+        <button class="btn btn-small js-bulk-next">Next &rarr;</button>
+        <button class="btn btn-primary js-bulk-convert">Convert selected</button>
       </div>
     </div>
 
     <div id="bulk-grid" class="bulk-grid"></div>
+
+    <div id="bulk-toolbar-bottom" class="bulk-toolbar bulk-toolbar-bottom hidden">
+      <div class="bulk-toolbar-left">
+        <button class="btn btn-small js-bulk-select-all">Select all</button>
+        <button class="btn btn-small js-bulk-select-none">Clear selection</button>
+        <span class="chip js-bulk-count">0 selected</span>
+      </div>
+      <div class="bulk-toolbar-right">
+        <button class="btn btn-small js-bulk-prev">&larr; Prev</button>
+        <span class="chip js-bulk-page">Page 1</span>
+        <button class="btn btn-small js-bulk-next">Next &rarr;</button>
+        <button class="btn btn-primary js-bulk-convert">Convert selected</button>
+      </div>
+    </div>
 
     <div id="bulk-progress" class="progress hidden">
       <div class="progress-bar"><div id="bulk-progress-fill"></div></div>
