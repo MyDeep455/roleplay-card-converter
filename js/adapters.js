@@ -31,18 +31,26 @@
  * measuring it from a delivered page makes an entry at the end of a library
  * report a library a third of its real size.
  *
- * A library `item` carries only what the mirror needs to draw a tile and fetch
- * the card later: name, tagline, avatar URL, creator, and the creator's notes
- * where the site keeps them as a field of their own. Star counts, download
- * totals, chat/message counts, ratings and comments are read past and dropped -
- * they are not part of a character card and never reach the output.
+ * A library `item` carries only what the mirror needs to draw a tile, describe
+ * the card to someone deciding on it, and fetch it later: name, tagline, avatar
+ * URL, creator, and - where the listing already carries them - `notes`, `tags`,
+ * `tokens` and `lorebook`. Star counts, download totals, chat/message counts,
+ * ratings and comments are read past and dropped - they are not part of a
+ * character card and never reach the output.
  *
  * `notes` is the author's message about the card - what chub calls Creator's
  * notes and Character Tavern calls the page description. It is shown in the
  * grid on demand and goes no further: the conversion still drops it, for the
- * reasons in convert.js. Both sites hand it over with the listing itself, so
- * carrying it costs no extra request; JanitorAI has no such field, and what it
- * does have is already this adapter's `tagline`.
+ * reasons in convert.js. JanitorAI has no such field, and what it does have is
+ * already this adapter's `tagline`.
+ *
+ * `tokens` is the card's own size as the site counts it, and `lorebook` says
+ * whether one is attached. Every one of these is taken from the listing reply
+ * and nowhere else: a detail worth a request per tile is not a detail worth
+ * having, so a site that does not say simply leaves the field out and the panel
+ * shows one line fewer. chub is the case that matters - its search knows how to
+ * filter for a lorebook but never says which card has one, because it returns
+ * no definitions at all.
  * ========================================================================= */
 
 import { getJson, getBlob, httpGet } from './transport.js';
@@ -387,6 +395,15 @@ const chub = {
         // grid's problem rather than this one's: it shows the notes only where
         // they say something the tile does not.
         notes: clean(n.description),
+        // The site's own topic list and its own token count. No lorebook flag:
+        // `require_lore=true` is a real filter on this endpoint - it takes a
+        // 9,347-card search down to 4,171 - but the node it returns says
+        // nothing about lore either way, and `definition` comes back null even
+        // with `full=true`, so the only place the answer exists is a per-card
+        // fetch. Twenty-four of those to label a page of tiles is not a trade
+        // worth making.
+        tags: Array.isArray(n.topics) ? n.topics.filter(Boolean) : [],
+        tokens: Number(n.nTokens) || 0,
         avatarUrl: n.avatar_url || n.max_res_url || '',
         cardUrl: `https://chub.ai/characters/${n.fullPath}`,
         creator: (n.fullPath || '').split('/')[0],
@@ -639,6 +656,11 @@ const characterTavern = {
         // name for the creator's notes. The search index carries it, so it
         // arrives with the tile rather than costing a second request.
         notes: clean(h.pageDescription),
+        // The one site of the three whose listing knows about lorebooks, so it
+        // is the one place the panel can say so.
+        tags: Array.isArray(h.tags) ? h.tags.filter(Boolean) : [],
+        tokens: Number(h.totalTokens) || 0,
+        lorebook: !!h.hasLorebook,
         avatarUrl: this.thumbUrlFor(h.path),
         cardUrl: `https://character-tavern.com/character/${h.path}`,
         creator: h.author,
@@ -969,10 +991,19 @@ const janitorai = {
       // the one field and it is already the tagline below. Copying it into
       // `notes` as well would put a badge on every tile promising more and then
       // showing the same paragraph back.
+      //
+      // The tags are read the same way `fetchCard` reads them, off the same
+      // character objects - and no token count, because this API quotes none
+      // under any name that could be checked from here. A field guessed at is
+      // worse than a field left out: this one answers 200 either way.
       items: nodes.map(n => ({
         key: n.id,
         name: clean(n.name) || 'Untitled',
         tagline: this.blurb(n.description),
+        tags: [...new Set([
+          ...(Array.isArray(n.tags) ? n.tags : []),
+          ...(Array.isArray(n.custom_tags) ? n.custom_tags : []),
+        ].map(jaiTagLabel).filter(Boolean))],
         avatarUrl: this.avatarUrlFor(n.avatar),
         cardUrl: this.cardUrlFor(n.id),
         creator: clean(n.creator_name),

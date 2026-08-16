@@ -1234,19 +1234,23 @@ function bulkPageCount(per, page) {
 }
 
 /* =========================================================================
- * CREATOR NOTES
+ * CARD DETAILS
  * -------------------------------------------------------------------------
  * The tile shows the tagline in full, which is the one line a site puts under
- * a card in its own grid. The notes are the paragraph behind it - what the
- * author wanted whoever downloads this to know - and on chub and Character
- * Tavern they arrive with the listing, so the only thing between them and the
- * screen is somewhere to put them.
+ * a card in its own grid. Everything else it knows - how many tokens the card
+ * runs to, what the author said about it, what it is tagged with, whether a
+ * lorebook came with it - arrives in the same listing reply, so the only thing
+ * between all of that and the screen is somewhere to put it.
  *
  * Not the tile itself: a row is as tall as its tallest card, so a paragraph
  * added to one tile is empty space added to the five beside it. It is a panel
  * over the grid instead, in the two shapes the two kinds of screen want -
  * pinned beside the tile where there is a pointer to hover with, and a sheet
  * across the bottom of the window where there is not.
+ *
+ * Nothing here is fetched. A panel that costs a request per tile would be a
+ * request per tile someone hovers past, so a site that does not put a fact in
+ * its search results simply does not show that line.
  * ========================================================================= */
 
 // How long the pointer has to settle on the badge before the panel opens, and
@@ -1281,22 +1285,28 @@ const notesWantSheet = () =>
   matchMedia('(hover: none), (pointer: coarse), (max-width: 720px)').matches;
 
 /**
- * The notes worth opening for this card, or '' when there are none.
+ * What this card has to say for itself beyond its tile, or null when that is
+ * nothing and the badge should not be drawn at all.
  *
- * Both sites that have the field let it be filled with anything, and what they
- * most often get is the tagline over again. A badge on those tiles would
- * promise more and then show the line already under the name, so what counts as
- * notes here is what the tile is not showing already.
+ * The notes are the part that needs judging rather than copying. Both sites
+ * that have the field let it be filled with anything, and what they most often
+ * get is the tagline over again - so what counts as notes here is what the tile
+ * is not showing already. The other three are facts: a size, a tag list, a
+ * lorebook or not, each present only where the site's listing said so.
  */
 const notesFlat = s => (s || '').replace(/\s+/g, ' ').trim();
 
-function cardNotes(item) {
-  const notes = notesFlat(item.notes);
-  if (!notes) return '';
-  return notesFlat(item.tagline).includes(notes) ? '' : item.notes.trim();
+function cardDetails(item) {
+  const flat = notesFlat(item.notes);
+  const notes = flat && !notesFlat(item.tagline).includes(flat) ? item.notes.trim() : '';
+  const tags = Array.isArray(item.tags) ? item.tags.map(t => notesFlat(t)).filter(Boolean) : [];
+  const tokens = Number(item.tokens) > 0 ? Number(item.tokens) : 0;
+  const lorebook = !!item.lorebook;
+
+  return notes || tags.length || tokens || lorebook ? { notes, tags, tokens, lorebook } : null;
 }
 
-function openNotes(card, badge, item, text, { pinned = false } = {}) {
+function openNotes(card, badge, item, details, { pinned = false } = {}) {
   clearTimeout(notesPop.openTimer);
   clearTimeout(notesPop.closeTimer);
 
@@ -1309,16 +1319,17 @@ function openNotes(card, badge, item, text, { pinned = false } = {}) {
   const wrap = $('card-notes');
   const pop = $('card-notes-pop');
   const by = $('card-notes-by');
-  const body = $('card-notes-body');
 
-  $('card-notes-title').textContent = item.name || 'Creator notes';
+  $('card-notes-title').textContent = item.name || 'Card details';
   by.textContent = item.creator ? `by ${item.creator}` : '';
   by.classList.toggle('hidden', !item.creator);
-  // textContent rather than markup: this is text somebody typed into a box on
-  // another site, and the panel renders it as the text it is. The line breaks
-  // in it are kept by the stylesheet.
-  body.textContent = text;
-  body.scrollTop = 0;
+
+  // Each of the three scrollable pieces back to the top - the panel is reused
+  // tile by tile, and a card opened after a long one would otherwise start
+  // halfway down somebody else's notes.
+  fillNotesDetails(details);
+  ['card-notes-scroll', 'card-notes-body', 'card-notes-tags']
+    .forEach(id => { $(id).scrollTop = 0; });
 
   notesPop.card = card;
   notesPop.badge = badge;
@@ -1342,6 +1353,41 @@ function openNotes(card, badge, item, text, { pinned = false } = {}) {
     pop.removeAttribute('aria-modal');
     placeNotes();
   }
+}
+
+/**
+ * Writes the four parts, and hides the ones this site did not answer.
+ *
+ * Hidden rather than shown empty, and never replaced by "unknown": a panel that
+ * lists what it does not know is longer, slower to read, and says nothing. A
+ * chub card simply has no lorebook line, because chub's search does not say.
+ */
+function fillNotesDetails({ notes, tags, tokens, lorebook }) {
+  const tokenLine = $('card-notes-tokens');
+  const body = $('card-notes-body');
+  const tagList = $('card-notes-tags');
+  const lore = $('card-notes-lore');
+
+  tokenLine.textContent = tokens ? `${fmt(tokens)} tokens` : '';
+  tokenLine.classList.toggle('hidden', !tokens);
+
+  // textContent rather than markup: this is text somebody typed into a box on
+  // another site, and the panel renders it as the text it is. The line breaks
+  // in it are kept by the stylesheet.
+  body.textContent = notes;
+  body.classList.toggle('hidden', !notes);
+
+  // Rebuilt rather than patched - it is at most a couple of dozen short chips,
+  // and the alternative is reconciling two lists on every hover.
+  tagList.replaceChildren(...tags.map(tag => {
+    const li = document.createElement('li');
+    li.textContent = tag;
+    return li;
+  }));
+  tagList.classList.toggle('hidden', !tags.length);
+
+  lore.textContent = lorebook ? 'Includes a lorebook' : '';
+  lore.classList.toggle('hidden', !lorebook);
 }
 
 // Beside the tile, on whichever side has room. Beside rather than over, so the
@@ -1398,7 +1444,7 @@ function keyboardFocus(el) {
 // that no longer closes.
 const within = (target, selector) => !!target?.closest?.(selector);
 
-function attachNotes(badge, card, item, text) {
+function attachNotes(badge, card, item, details) {
   const isOpen = () => notesPop.badge === badge;
 
   badge.addEventListener('click', e => {
@@ -1406,7 +1452,7 @@ function attachNotes(badge, card, item, text) {
     // not, so the click stops here instead of ticking the card behind it.
     e.stopPropagation();
     if (isOpen()) closeNotes();
-    else openNotes(card, badge, item, text, { pinned: true });
+    else openNotes(card, badge, item, details, { pinned: true });
   });
 
   // Hovering is an offer on top of that button, never the only way in - which
@@ -1417,7 +1463,7 @@ function attachNotes(badge, card, item, text) {
     if (e.pointerType !== 'mouse' || isOpen()) return;
     clearTimeout(notesPop.closeTimer);
     clearTimeout(notesPop.openTimer);
-    notesPop.openTimer = setTimeout(() => openNotes(card, badge, item, text), NOTES_OPEN_MS);
+    notesPop.openTimer = setTimeout(() => openNotes(card, badge, item, details), NOTES_OPEN_MS);
   });
 
   badge.addEventListener('pointerleave', e => {
@@ -1431,7 +1477,7 @@ function attachNotes(badge, card, item, text) {
   // keyboard's - a click focuses the button too, and the handler above is
   // already deciding what that means.
   badge.addEventListener('focus', () => {
-    if (!isOpen() && keyboardFocus(badge)) openNotes(card, badge, item, text, { pinned: true });
+    if (!isOpen() && keyboardFocus(badge)) openNotes(card, badge, item, details, { pinned: true });
   });
 }
 
@@ -1534,13 +1580,14 @@ function renderBulkGrid() {
               onerror="this.parentNode.innerHTML='<div class=\\'noimg\\'>no image</div>'" />`
       : `<div class="noimg">no image</div>`;
 
-    // Only on the tiles that have something to show. A badge on every card,
-    // half of them opening a repeat of the tagline, would teach people to stop
-    // pressing it - so the ones that appear are the ones worth a look.
-    const notes = cardNotes(item);
-    const badge = notes
-      ? `<button type="button" class="bulk-card-info" title="Creator notes"
-                 aria-label="Creator notes for ${escapeAttr(item.name)}"
+    // Only on the tiles that have something to show. Which is most of them on
+    // chub and Character Tavern, since both quote a token count for every card
+    // - but a JanitorAI grid, whose listing says none of this, stays as bare as
+    // it was rather than growing two dozen badges that open an empty panel.
+    const details = cardDetails(item);
+    const badge = details
+      ? `<button type="button" class="bulk-card-info" title="Card details"
+                 aria-label="Details for ${escapeAttr(item.name)}"
                  aria-haspopup="dialog" aria-expanded="false">i</button>`
       : '';
 
@@ -1584,7 +1631,7 @@ function renderBulkGrid() {
     card.querySelector('.bulk-check').addEventListener('change', toggle);
 
     const info = card.querySelector('.bulk-card-info');
-    if (info) attachNotes(info, card, item, notes);
+    if (info) attachNotes(info, card, item, details);
 
     grid.appendChild(card);
   });

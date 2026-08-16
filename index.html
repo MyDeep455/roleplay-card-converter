@@ -245,10 +245,13 @@
      mid-sentence. -->
 <div id="success-toast" class="toast" role="status" aria-live="polite"></div>
 
-<!-- ============================ CREATOR NOTES ============================ -->
-<!-- The author's notes for one tile, read without leaving the grid. Empty here
-     for the same reason the tour is: every word in it belongs to whichever card
-     was asked about, and app.js writes it on open.
+<!-- ============================ CARD DETAILS ============================ -->
+<!-- What one tile has room for is a name, a blurb and a face. The rest of what
+     a site knows about a card - how big it is, what the author said about it,
+     what it is tagged with, whether a lorebook came with it - arrives with the
+     same search and is put here, one tile at a time. Empty here for the same
+     reason the tour is: every word in it belongs to whichever card was asked
+     about, and app.js writes it on open.
 
      It sits at the end of the body rather than inside the tile it describes,
      because a tile clips its own contents - `overflow: hidden` is what keeps
@@ -269,9 +272,23 @@
 
   <div id="card-notes-pop" class="notes-pop" role="dialog" aria-labelledby="card-notes-title">
     <button id="card-notes-close" class="notice-close" aria-label="Close">&times;</button>
+
+    <!-- Which card this is stays put; everything below it scrolls, so a long
+         set of notes never leaves someone reading a wall of text with no idea
+         whose it is. -->
     <p id="card-notes-title" class="notes-title"></p>
     <p id="card-notes-by" class="notes-by"></p>
-    <div id="card-notes-body" class="notes-body"></div>
+
+    <div id="card-notes-scroll" class="notes-scroll">
+      <!-- The size of the card first, because it is the one line that is read
+           in a glance and decides whether the paragraph under it is worth the
+           time - a 300-token card and a 4,000-token one are different
+           propositions whatever the author wrote about them. -->
+      <p id="card-notes-tokens" class="notes-tokens"></p>
+      <div id="card-notes-body" class="notes-body"></div>
+      <ul id="card-notes-tags" class="notes-tags"></ul>
+      <p id="card-notes-lore" class="notes-lore"></p>
+    </div>
   </div>
 </div>
 

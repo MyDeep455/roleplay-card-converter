@@ -283,35 +283,44 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
 /* ---------------- scrollbars ---------------- */
 
 /* Three places in the tool scroll their own contents - a list of pasted URLs in
-   the box above, a card blurb too long for its tile, and a panel of creator's
-   notes - and they are styled
-   together so the tool has one scrollbar rather than one per feature. The
-   default is a wide light-grey bar that sits on a dark panel looking like
-   something spilled on it.
+   the box above, a card blurb too long for its tile, and a card's details panel
+   - and they are styled together so the tool has one scrollbar rather than one
+   per feature. The default is a wide light-grey bar that sits on a dark panel
+   looking like something spilled on it.
      Firefox reads the two standard properties; Chrome and Safari read the
    ::-webkit- rules and ignore the standard ones. Both are needed, and neither
    is a fallback for the other. */
 textarea,
 .bulk-card-tag,
-.notes-body {
+.notes-scroll,
+.notes-body,
+.notes-tags {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
 textarea::-webkit-scrollbar,
 .bulk-card-tag::-webkit-scrollbar,
-.notes-body::-webkit-scrollbar { width: 6px; }
+.notes-scroll::-webkit-scrollbar,
+.notes-body::-webkit-scrollbar,
+.notes-tags::-webkit-scrollbar { width: 6px; }
 
 textarea::-webkit-scrollbar-track,
 .bulk-card-tag::-webkit-scrollbar-track,
-.notes-body::-webkit-scrollbar-track { background: transparent; }
+.notes-scroll::-webkit-scrollbar-track,
+.notes-body::-webkit-scrollbar-track,
+.notes-tags::-webkit-scrollbar-track { background: transparent; }
 
 textarea::-webkit-scrollbar-thumb,
 .bulk-card-tag::-webkit-scrollbar-thumb,
-.notes-body::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+.notes-scroll::-webkit-scrollbar-thumb,
+.notes-body::-webkit-scrollbar-thumb,
+.notes-tags::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 
 textarea::-webkit-scrollbar-thumb:hover,
 .bulk-card-tag::-webkit-scrollbar-thumb:hover,
-.notes-body::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+.notes-scroll::-webkit-scrollbar-thumb:hover,
+.notes-body::-webkit-scrollbar-thumb:hover,
+.notes-tags::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
 
 .btn {
   padding: 10px 16px;
@@ -508,6 +517,15 @@ textarea::-webkit-scrollbar-thumb:hover,
   min-height: 2.8em;    /* reserve two lines so short blurbs still line up */
   max-height: 14em;     /* ten lines */
   overflow-y: auto;
+
+  /* Down only. Setting overflow on one axis makes the other one scroll too the
+     moment anything overflows it - `visible` is not a value the two can be
+     mixed with - so a blurb with a bare URL in it grew a horizontal bar under
+     a tile 178px wide. Hiding that axis alone would only trade the bar for
+     text cut off at the edge, so the long word is broken instead: everything
+     stays readable and the only bar is the vertical one. */
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
 }
 .bulk-card-creator { font-size: 0.72rem; color: var(--text-faint); margin: 4px 0 0; }
 
@@ -598,20 +616,75 @@ textarea::-webkit-scrollbar-thumb:hover,
 .notes-title { margin: 0; font-size: 0.9rem; font-weight: 600; }
 .notes-by { margin: 1px 0 0; font-size: 0.76rem; color: var(--text-faint); }
 
+/* The column under the heading. It scrolls only as a last resort - the two
+   parts inside it that can run long are capped themselves, so on all but a
+   short window this never engages. */
+.notes-scroll {
+  margin-top: 9px;
+  overflow-y: auto;
+  /* Scrolling this must not carry on into the page behind it once it runs out -
+     the opposite of the rule for a blurb inside a tile, which chains on purpose
+     because the tile is part of the page being scrolled. */
+  overscroll-behavior: contain;
+}
+
+/* The card's size, and the first thing read. Monospace figures so a column of
+   them across different cards is comparable at a glance rather than a set of
+   differently-shaped words. */
+.notes-tokens {
+  margin: 0 0 8px;
+  font-size: 0.76rem; color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
 /* The author's own line breaks are kept - a notes field is routinely a list of
    greetings or a changelog, and run together as one paragraph it stops being
    either. `anywhere` because the text comes from a box on another site and
-   regularly contains a URL longer than this panel is wide. */
+   regularly contains a URL longer than this panel is wide.
+     Capped, and scrolling inside that cap, so that what is printed underneath
+   it stays underneath it. Notes really do run to five thousand characters -
+   a Character Tavern card with an unfolding-canon writeup was the case that
+   settled this - and with one scrollbar for the whole column its tag list sat
+   several screens below the fold, which is indistinguishable from not being
+   there. */
 .notes-body {
-  margin-top: 9px;
+  margin: 0;
   font-size: 0.82rem; line-height: 1.5; color: var(--text-dim);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   overflow-y: auto;
-  /* Scrolling the notes must not carry on into the page behind them once they
-     run out - the opposite of the rule for a blurb inside a tile, which chains
-     on purpose because the tile is part of the page being scrolled. */
   overscroll-behavior: contain;
+}
+
+/* Chips rather than a comma-separated line: a tag list is a set of separate
+   facts, and thirteen of them run together read as a sentence that does not
+   parse. Wrapping is the whole layout - the count is not something the panel
+   gets to cap, since a card really can carry twenty. */
+.notes-tags {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  margin: 10px 0 0; padding: 0;
+  list-style: none;
+  /* Fifty-one tags is a real card, not a hypothetical one, and left to itself
+     that list pushes the lorebook line off the panel. A few rows, then it
+     scrolls like the notes above it. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.notes-tags li {
+  padding: 2px 7px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.72rem; color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+/* Only ever drawn where the site actually says - Character Tavern, today. The
+   green is the one the finished-import button uses: this is the same kind of
+   news, something extra arriving with the card rather than a warning. */
+.notes-lore {
+  margin: 10px 0 0;
+  font-size: 0.75rem; color: var(--ok);
 }
 
 /* ---- pinned beside a tile (a pointer, a wide window) ---- */
@@ -622,7 +695,9 @@ textarea::-webkit-scrollbar-thumb:hover,
   width: min(330px, calc(100vw - 24px));
   animation: notes-in 0.12s ease-out;
 }
-.notes-anchored .notes-body { max-height: min(46vh, 340px); }
+.notes-anchored .notes-scroll { max-height: min(60vh, 430px); }
+.notes-anchored .notes-body { max-height: min(38vh, 260px); }
+.notes-anchored .notes-tags { max-height: 6.5em; }   /* about four rows of chips */
 .notes-anchored .notes-scrim { display: none; }
 
 /* ---- a sheet across the bottom (touch, or a narrow window) ---- */
@@ -639,9 +714,15 @@ textarea::-webkit-scrollbar-thumb:hover,
   border-bottom: none;
   animation: notes-up 0.16s ease-out;
 }
-/* The heading stays put and the notes scroll under it, so a long changelog
-   never leaves someone wondering which card they opened. */
-.notes-sheet .notes-body { flex: 1 1 auto; min-height: 0; font-size: 0.86rem; }
+/* The heading stays put and everything else scrolls under it, so a long
+   changelog never leaves someone wondering which card they opened. */
+.notes-sheet .notes-scroll { flex: 1 1 auto; min-height: 0; }
+.notes-sheet .notes-body { max-height: 42dvh; font-size: 0.86rem; }
+.notes-sheet .notes-tags { max-height: 8em; }
+/* Chips are targets on a touch screen even when nothing happens when you press
+   one - a row of them too tight to tell apart reads as a control that is not
+   working. */
+.notes-sheet .notes-tags li { padding: 3px 9px; font-size: 0.76rem; }
 
 .notes-sheet .notes-scrim {
   position: absolute; inset: 0;
@@ -1115,23 +1196,27 @@ textarea::-webkit-scrollbar-thumb:hover,
   .bulk-card-name { font-size: 0.85rem; }
   .bulk-card-creator { font-size: 0.74rem; margin-top: auto; padding-top: 5px; }
 
-  /* Clamped here, not scrolled. A blurb that scrolls inside its own tile is a
-     trap on a touch screen: the drag meant to move the page moves the blurb
-     instead, and at this tile size a finger starts on one most of the way down
-     the grid. Three lines is enough to tell two characters apart, which is all
-     the picker is for. */
+  /* Taller, and scrolled rather than cut off at three lines.
+       Three lines was a hedge against the scroll trap - a drag meant to move
+     the page moving the blurb instead - and it cost too much for it: most
+     blurbs on these sites run past three lines, so the usual tile ended in a
+     hard stop mid-sentence with no sign there was more and no way to reach it.
+     Seven lines fits the great majority whole, and the ones past that scroll,
+     which is the same bargain the desktop tile has always made. The trap is
+     survivable in a way the truncation was not: the scroll chains into the page
+     the moment the blurb runs out, so a finger that lands on one keeps moving.
+       No line clamp of any kind here, deliberately - `-webkit-line-clamp`
+     needs `overflow: hidden`, and hidden and scrollable are the same property
+     fighting over one element. */
   .bulk-card-tag {
     font-size: 0.78rem;
     /* Two lines were reserved so that short blurbs still left the credits in
        line with their neighbours'. The column above does that job properly
        now, so the reservation is just a gap under a one-line blurb. */
     min-height: 0;
-    max-height: none;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
+    max-height: 10em;    /* about seven lines at this size */
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   /* Bigger than a fingertip, and ringed so it stays visible when the avatar
