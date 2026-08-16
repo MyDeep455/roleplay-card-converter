@@ -603,18 +603,30 @@ textarea::-webkit-scrollbar-thumb:hover,
   pointer-events: none;
 }
 
+/* Even padding, rather than a wide right margin holding the close button's
+   corner clear.
+     The panel's own padding is where its scrollbars stand: a scrolling child
+   fills the content box, so a 34px right pad parked the bar 34px in from the
+   edge with the text hard against its left side - a bar floating in the middle
+   of a margin, and the text worse off for it. Pulling the padding back to match
+   the left puts the bar out at the edge under the close button, where the panel
+   already reserves room for a control, and the gap between text and bar is
+   given by the scrolling children below instead. Only the heading needs the
+   corner kept clear now, and it asks for that itself. */
 .notes-pop {
   position: absolute;
   pointer-events: auto;
-  padding: 14px 34px 14px 16px;
+  padding: 14px 16px;
   background: var(--bg-raised);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   box-shadow: 0 10px 30px rgba(8, 9, 12, 0.55);
 }
 
-.notes-title { margin: 0; font-size: 0.9rem; font-weight: 600; }
-.notes-by { margin: 1px 0 0; font-size: 0.76rem; color: var(--text-faint); }
+/* Both lines, not just the title: a long name wraps to two lines and the
+   credit under it then starts level with the button. */
+.notes-title { margin: 0; font-size: 0.9rem; font-weight: 600; padding-right: 30px; }
+.notes-by { margin: 1px 0 0; font-size: 0.76rem; color: var(--text-faint); padding-right: 30px; }
 
 /* The column under the heading. It scrolls only as a last resort - the two
    parts inside it that can run long are capped themselves, so on all but a
@@ -654,6 +666,12 @@ textarea::-webkit-scrollbar-thumb:hover,
   overflow-wrap: anywhere;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* The gap between the last word of a line and the scrollbar. It belongs to
+     the scrolling element rather than to the panel, because a scroll container
+     lays its content out inside its padding and puts the bar outside it - so
+     this is the one place that can separate the two without also moving the
+     bar off the edge. */
+  padding-right: 10px;
 }
 
 /* Chips rather than a comma-separated line: a tag list is a set of separate
@@ -662,7 +680,7 @@ textarea::-webkit-scrollbar-thumb:hover,
    gets to cap, since a card really can carry twenty. */
 .notes-tags {
   display: flex; flex-wrap: wrap; gap: 5px;
-  margin: 10px 0 0; padding: 0;
+  margin: 10px 0 0; padding: 0 10px 0 0;   /* the same gap before the bar */
   list-style: none;
   /* Fifty-one tags is a real card, not a hypothetical one, and left to itself
      that list pushes the lorebook line off the panel. A few rows, then it
@@ -709,7 +727,7 @@ textarea::-webkit-scrollbar-thumb:hover,
   width: auto;
   max-height: 74dvh;
   display: flex; flex-direction: column;
-  padding: 16px 44px 18px 16px;
+  padding: 16px 16px 18px;
   border-radius: var(--radius) var(--radius) 0 0;
   border-bottom: none;
   animation: notes-up 0.16s ease-out;
@@ -717,8 +735,15 @@ textarea::-webkit-scrollbar-thumb:hover,
 /* The heading stays put and everything else scrolls under it, so a long
    changelog never leaves someone wondering which card they opened. */
 .notes-sheet .notes-scroll { flex: 1 1 auto; min-height: 0; }
-.notes-sheet .notes-body { max-height: 42dvh; font-size: 0.86rem; }
-.notes-sheet .notes-tags { max-height: 8em; }
+/* A wider gap than the popover's. The bar is the same six pixels either way,
+   but a thumb rests on this one and the text it is nearly touching is a third
+   larger, so the same clearance reads as tighter here. */
+.notes-sheet .notes-body { max-height: 42dvh; font-size: 0.86rem; padding-right: 14px; }
+.notes-sheet .notes-tags { max-height: 8em; padding-right: 14px; }
+/* The close button is a corner of the sheet rather than a corner of a small
+   popover, so the heading has further to stay clear of. */
+.notes-sheet .notes-title,
+.notes-sheet .notes-by { padding-right: 38px; }
 /* Chips are targets on a touch screen even when nothing happens when you press
    one - a row of them too tight to tell apart reads as a control that is not
    working. */
