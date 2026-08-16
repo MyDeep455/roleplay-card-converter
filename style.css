@@ -431,20 +431,7 @@ textarea::-webkit-scrollbar-thumb:hover,
   color: var(--text-dim); font-size: 0.78rem;
 }
 
-/* ---------------- current source ---------------- */
-
-.bulk-source {
-  margin: 14px 0 0;
-  color: var(--text-dim);
-  font-size: 0.82rem;
-  /* A search URL carries every filter and can run long, so it wraps anywhere
-     rather than pushing the layout sideways. */
-  overflow-wrap: anywhere;
-}
-.bulk-source a { color: var(--accent); text-decoration: none; }
-.bulk-source a:hover { text-decoration: underline; }
-
-/* Sits between the source line and the toolbar it refers to, so the step being
+/* Sits between the status line and the toolbar it refers to, so the step being
    asked for is read before the buttons that carry it out. */
 .bulk-hint {
   margin: 6px 0 0;
@@ -455,13 +442,43 @@ textarea::-webkit-scrollbar-thumb:hover,
 
 /* ---------------- card picker grid ---------------- */
 
+/* Three tracks rather than a flex row with `space-between`, because the paging
+   controls have to sit in the middle of the *bar* and not in the middle of
+   whatever space the other two happen to leave. The outer tracks are equal and
+   flexible, the middle one is only as wide as it needs to be, so "0 selected"
+   growing into "24 selected" - or the page label going from "Page 1 / 9" to
+   "Page 1 / 4167" - does not slide the arrows sideways under the cursor. */
 .bulk-toolbar {
-  display: flex; justify-content: space-between; align-items: center;
-  gap: 12px; flex-wrap: wrap;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  gap: 12px;
   margin: 18px 0 14px; padding: 10px 12px;
   background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
 }
-.bulk-toolbar-left, .bulk-toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bulk-toolbar-left, .bulk-toolbar-mid, .bulk-toolbar-right {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.bulk-toolbar-mid { justify-content: center; }
+.bulk-toolbar-right { justify-content: flex-end; }
+
+/* Prev and Next are the only controls here that are pressed over and over, and
+   in a row of six grey buttons they were found by reading rather than seen. A
+   tinted face and an accent-coloured edge lift them off the bar without making
+   them compete with Convert, which stays the one solid-filled button - these
+   move you around inside what you already have, it is the one that acts. */
+.btn-page {
+  background: rgba(124, 156, 255, 0.12);
+  border-color: rgba(124, 156, 255, 0.55);
+  color: var(--accent);
+  font-weight: 600;
+}
+.btn-page:hover:not(:disabled) {
+  background: rgba(124, 156, 255, 0.22);
+  border-color: var(--accent);
+}
+
+/* Between two tinted buttons a plain grey chip reads as a gap, so the page
+   label is tinted to match and the three become one control. */
+.chip-page { border-color: rgba(124, 156, 255, 0.3); color: var(--text); }
 
 /* The copy under the grid. The top one's margin already separates it from the
    search panel above; this one needs the gap on the side facing the tiles. */
@@ -1150,7 +1167,7 @@ textarea::-webkit-scrollbar-thumb:hover,
 
   /* The 12px labels that read as quiet on a monitor read as unreadable here,
      so every one of them goes up a step. */
-  .hint, .status, .bulk-source { font-size: 0.9rem; }
+  .hint, .status { font-size: 0.9rem; }
   .bulk-hint { font-size: 0.92rem; }
   .chip { font-size: 0.8rem; padding: 3px 10px; }
 
@@ -1166,7 +1183,7 @@ textarea::-webkit-scrollbar-thumb:hover,
      whatever order the widths allowed - the button that converts could end up
      anywhere. An explicit grid puts them in the order they are used: which
      page am I on, what have I ticked, then the one action that acts on it.
-       display:contents takes the two wrapper divs out of the box model so
+       display:contents takes the three wrapper divs out of the box model so
      their buttons become items of this grid directly. The wrappers stay in the
      markup because the desktop toolbar is built out of them. */
   .bulk-toolbar {
@@ -1176,7 +1193,7 @@ textarea::-webkit-scrollbar-thumb:hover,
     margin: 16px 0 12px;
     padding: 10px;
   }
-  .bulk-toolbar-left, .bulk-toolbar-right { display: contents; }
+  .bulk-toolbar-left, .bulk-toolbar-mid, .bulk-toolbar-right { display: contents; }
 
   /* Placed by class, not by id: this toolbar exists twice - once above the grid
      and once below it - so an id would only ever lay out the first of them. */

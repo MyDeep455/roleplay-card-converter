@@ -52,6 +52,8 @@ function emptyBulk() {
     sourcePages: 1,        // how many the source says it has
     sourcePageSize: 0,     // items in its first page, for the page-count estimate
     sourceTotal: 0,        // cards the search has in all, 0 until the site says
+    sourceTotalIsFloor: false,   // and that figure is the most the site will
+                           // admit to rather than the size of the library
     offset: 0,             // index in the feed of the first tile on screen
     items: [],             // the window on screen
     selected: new Set(),   // keys selected in that window
@@ -699,7 +701,10 @@ async function fillFeed(need) {
     // figure upwards.
     b.sourcePageSize = Math.max(b.sourcePageSize, result.pageSize || 0, items.length);
 
-    if (!b.sourceTotal && result.total) b.sourceTotal = result.total;
+    if (!b.sourceTotal && result.total) {
+      b.sourceTotal = result.total;
+      b.sourceTotalIsFloor = !!result.totalIsFloor;
+    }
 
     const fresh = items.filter(i => !b.keys.has(i.key));
     fresh.forEach(i => b.keys.add(i.key));
@@ -906,17 +911,16 @@ window.addEventListener('resize', () => {
 });
 
 // `keepToolbars` is for paging, which is the one case where what is on screen
-// is still the thing being worked on: the source line and the page controls go
-// on describing it truthfully while the next page arrives, and taking them away
-// would collapse the page around the button that was just pressed.
+// is still the thing being worked on: the page controls go on describing it
+// truthfully while the next page arrives, and taking them away would collapse
+// the page around the button that was just pressed.
 function renderSkeletons(n, { keepToolbars = false } = {}) {
   const grid = $('bulk-grid');
   grid.innerHTML = '';
 
-  // Nothing has arrived yet, so naming a source - or asking for a choice
-  // between tiles that are still placeholders - would be premature.
+  // Nothing has arrived yet, so asking for a choice between tiles that are
+  // still placeholders would be premature.
   if (!keepToolbars) {
-    $('bulk-source').classList.add('hidden');
     $('bulk-hint').classList.add('hidden');
     showToolbars(false);
   }
@@ -948,8 +952,8 @@ async function loadDiscover() {
     if (!state.bulk.feed.length) throw new Error('no cards returned');
     renderBulkGrid();
 
-    // The source line under the box already names what these are and links to
-    // it, so a second sentence saying the same thing is just noise.
+    // The search panel above is already set to what these are, so a sentence
+    // under it saying the same thing again is just noise.
     setStatus(status, '', '');
   } catch {
     if (discoverSuperseded) return;
@@ -967,50 +971,44 @@ function clearBulkGrid() {
   renderBulkGrid();
 }
 
-// What is on screen came from somewhere - a search of your own or the opening
-// suggestions - and after a few conversions it is easy to lose track of which.
-// This names it, and links back so the same page can be reopened on the site.
-function renderBulkSource() {
-  const el = $('bulk-source');
+// A page of search results is a shelf, not an order - nothing below it is
+// converted until it is picked, so this line says which step is being asked for
+// rather than leaving the grid looking like something already underway.
+//
+// Where the cards came from is not repeated here. The search panel above is
+// still set to the platform and the terms that fetched them, which says it
+// already, and there is no longer any other way for a grid to arrive.
+function renderBulkHint() {
   const hint = $('bulk-hint');
   const { url, items } = state.bulk;
 
   if (!items.length || !url) {
-    el.classList.add('hidden');
-    el.innerHTML = '';
     hint.classList.add('hidden');
     hint.innerHTML = '';
     return;
   }
 
-  el.classList.remove('hidden');
-  el.innerHTML =
-    `Currently showing card(s) from: <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
-
-  // A page of search results is a shelf, not an order - nothing below it is
-  // converted until it is picked, so the line says which step is being asked
-  // for rather than leaving the grid looking like something already underway.
   hint.classList.remove('hidden');
-  hint.innerHTML = 'Select any characters &rarr; Convert &rarr; Import to Casual Character Chat';
+  hint.innerHTML = 'Select any characters, then convert & import:';
 }
 
 // How many cards this search has to offer, not how many are on screen - the
 // grid holds four rows of them and the search is usually hundreds deep.
 //
-// Whatever the site said, with no ceiling of our own: chub answers a broad
-// search with six figures on a good connection, and a number that stopped
-// climbing would be read as the library ending there. The one case the figure
-// is held down is a site quoting a library it will not actually serve -
-// JanitorAI signed out quotes thousands and then hands over a single page - and
-// that is recognised by its page count, not by the size of the number. Sites
-// that quote nothing are estimated from their pages instead.
+// Whatever the site said, full stop. There is no ceiling of any kind here, and
+// there used to be one: the figure was held down to the site's page count times
+// its page size, on the theory that a library it will not page through is not
+// really on offer. That is true of exactly one site - JanitorAI signed out - and
+// that case is answered where it belongs, in the adapter, which reports the one
+// page it will actually serve rather than the library behind it. Everywhere else
+// the two numbers are quoted independently and either can round short, so a site
+// with a real 36,472-card search and a page count that only reaches 24,320 was
+// having 12,000 cards taken off its total by arithmetic. Sites that quote no
+// total at all are still estimated from their pages, because there is nothing
+// else to go on.
 function bulkTotalCards() {
   const b = state.bulk;
-
-  // What the site's own pagination can reach. Only meaningful once a page has
-  // actually arrived, and only a limit when it falls short of the quoted total.
-  const reach = b.sourcePages * b.sourcePageSize;
-  if (b.sourceTotal) return reach ? Math.min(b.sourceTotal, reach) : b.sourceTotal;
+  if (b.sourceTotal) return b.sourceTotal;
 
   const unseen = Math.max(0, b.sourcePages - b.sourcePage) * b.sourcePageSize;
   return b.feed.length + unseen;
@@ -1018,10 +1016,16 @@ function bulkTotalCards() {
 
 // What a search found, not what one screen of it holds: "24 cards" under a grid
 // of 24 reads as the whole result, when it is the first four rows of hundreds.
+//
+// The "+" is only ever on a figure the site itself has stopped counting at, and
+// it is there because the alternative is worse: a flat "100,000 cards found" is
+// a suspiciously round number that reads as a limit this tool imposed, when it
+// is the point past which chub will not answer.
 function bulkFoundMessage(shown) {
   const total = bulkTotalCards();
+  const more = state.bulk.sourceTotalIsFloor && total >= state.bulk.sourceTotal ? '+' : '';
   return total > shown
-    ? `${fmt(total)} cards found - ${fmt(shown)} on this page.`
+    ? `${fmt(total)}${more} cards found - ${fmt(shown)} on this page.`
     : `${fmt(shown)} cards.`;
 }
 
@@ -1350,7 +1354,7 @@ function renderBulkGrid() {
   b.items = b.feed.slice(b.offset, b.offset + per);
 
   grid.innerHTML = '';
-  renderBulkSource();
+  renderBulkHint();
   updateJaiInfo();
 
   if (!b.items.length) {

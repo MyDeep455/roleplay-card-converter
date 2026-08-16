@@ -7,7 +7,7 @@
  *   isLibraryUrl(url)           library/search page rather than a single card?
  *   fetchCard(url, ctx)         one card  -> NormalizedCard
  *   listLibrary(url, page, ctx) a library page -> { items, page, totalPages, total,
- *                                                   pageSize }
+ *                                                   pageSize, totalIsFloor }
  *   search                      how to build one of those library URLs from a
  *                               filled-in form rather than a copied address bar
  *
@@ -23,7 +23,16 @@
  * `total` is how many cards the search has in all, counting only the pages this
  * adapter can actually reach - JanitorAI signed out serves one page and refuses
  * the rest, so for it that figure is one page long. Left out when the site does
- * not say; the caller then estimates from the page size.
+ * not say; the caller then estimates from the page size. The caller adds no
+ * ceiling of its own - whatever an adapter returns here is what gets shown - so
+ * an adapter that knows its site's quoted figure is not the servable one has to
+ * correct it here, where the evidence for the correction can sit beside it.
+ * JanitorAI is the one that does.
+ *
+ * `totalIsFloor` says that figure is the most the site will admit to rather than
+ * the size of the library - chub answers every search bigger than 100,000 with
+ * exactly 100,000 - so the count is shown as "100,000+" instead of a suspiciously
+ * round number that reads as a ceiling somebody put there. Only chub sets it.
  *
  * `pageSize` is how many cards a full page of this site holds - the number asked
  * for, not the number that arrived. The caller multiplies it by the page count
@@ -248,6 +257,17 @@ const chub = {
   // API returns 200 and skips them); only invalid *values* for known params
   // are rejected, and a pasted chub URL carries chub's own valid values.
   //
+  // The furthest this API will count, and the furthest it will page. Every
+  // search with more than this behind it comes back saying exactly 100000 - a
+  // bare browse, `search=a`, `topics=Female` and `nsfw_only=true` all quote the
+  // same figure - and page 4168 of a 24-to-a-page search returns an empty list
+  // rather than more cards. So it is not a number this tool is trimming: it is
+  // where chub stops. Nothing raises it either; `track_total_hits`, `max_count`,
+  // `count_limit` and `exact_count` were all tried and all read past.
+  //   Recorded so the count can be shown as "100,000+" rather than as a flat
+  // 100,000, which reads as a limit somebody chose.
+  COUNT_CAP: 100000,
+
   // `sort` is the one parameter the API is strict about: an unknown value gets
   // a 400 rather than being ignored. Helpfully, that error lists the accepted
   // ones, which is exactly where this set came from.
@@ -411,6 +431,7 @@ const chub = {
       page,
       totalPages: Math.max(1, Math.ceil(count / pageSize)),
       total: count,
+      totalIsFloor: count >= this.COUNT_CAP,
       pageSize,
     };
   },
@@ -983,7 +1004,26 @@ const janitorai = {
 
     const nodes = res.data || [];
     const size = res.size || this.PAGE_SIZE;
-    const total = res.total ?? res.filtered_total ?? nodes.length;
+    const quoted = res.total ?? res.filtered_total ?? nodes.length;
+
+    // A browse quotes half again as many cards as it will hand over, and a
+    // search quotes the truth. Signed in and paging to the end of each:
+    //
+    //   browse popular   total 3,672,942  last page with cards 72,019 = /51
+    //   browse latest    total 3,672,940  last page with cards 72,019 = /51
+    //   browse nsfw      total 3,547,311  last page with cards 69,556 = /51
+    //   search "love"    total   315,112  last page with cards  9,268 = /34
+    //   search "dragon"  total    29,199  last page with cards    859 = /34
+    //
+    // Every one exact, the page after each empty and HTTP 200 rather than a
+    // rate limit. So a browse serves two thirds of what it counts - the API
+    // stops at an offset of `total * 2/3` however many pages that leaves on the
+    // table - and taken at face value the grid promised 3.6 million cards and
+    // 80,000 pages of nothing after the real last one.
+    //   Scaled rather than clamped: this is not a ceiling being imposed, it is
+    // the site's own figure corrected to the set it will actually serve. A
+    // search is passed through untouched, because there it is already right.
+    const total = search ? quoted : Math.round(quoted * 2 / 3);
 
     return {
       // No `notes` here, and none is missing: the other two sites keep the

@@ -45,7 +45,7 @@
       <div class="search-main">
         <select id="search-platform" class="search-select" aria-label="Platform"></select>
         <input id="search-term" class="search-term" type="search" autocomplete="off" spellcheck="false"
-          placeholder="Search characters by name, or leave empty to just browse" />
+          placeholder="Search by name or keywords" />
         <select id="search-sort" class="search-select" aria-label="Sort by"></select>
         <button id="search-btn" class="btn btn-primary">Search</button>
       </div>
@@ -91,8 +91,6 @@
 
     <div id="bulk-status" class="status"></div>
 
-    <p id="bulk-source" class="bulk-source hidden"></p>
-
     <p id="bulk-hint" class="bulk-hint hidden"></p>
 
     <!-- ---------------------------------------------------------------
@@ -107,6 +105,13 @@
          is found by its `js-` class, so app.js labels, enables and listens to
          both at once and they cannot drift out of step. Ids are only on the
          wrappers, for the tour and for showing/hiding.
+
+         Three wrappers rather than two, because the row says three different
+         things: what you have picked, where you are in the results, and the one
+         action that acts on the picking. Paging is the middle of those in
+         importance and in reading order, so it is the middle of the bar - and
+         with the ends pinned left and right it stays put as the two labels
+         beside it change width.
          --------------------------------------------------------------- -->
     <div id="bulk-toolbar" class="bulk-toolbar hidden">
       <div class="bulk-toolbar-left">
@@ -114,10 +119,12 @@
         <button class="btn btn-small js-bulk-select-none">Clear selection</button>
         <span class="chip js-bulk-count">0 selected</span>
       </div>
+      <div class="bulk-toolbar-mid">
+        <button class="btn btn-small btn-page js-bulk-prev">&larr; Prev</button>
+        <span class="chip chip-page js-bulk-page">Page 1</span>
+        <button class="btn btn-small btn-page js-bulk-next">Next &rarr;</button>
+      </div>
       <div class="bulk-toolbar-right">
-        <button class="btn btn-small js-bulk-prev">&larr; Prev</button>
-        <span class="chip js-bulk-page">Page 1</span>
-        <button class="btn btn-small js-bulk-next">Next &rarr;</button>
         <button class="btn btn-primary js-bulk-convert">Convert selected</button>
       </div>
     </div>
@@ -130,10 +137,12 @@
         <button class="btn btn-small js-bulk-select-none">Clear selection</button>
         <span class="chip js-bulk-count">0 selected</span>
       </div>
+      <div class="bulk-toolbar-mid">
+        <button class="btn btn-small btn-page js-bulk-prev">&larr; Prev</button>
+        <span class="chip chip-page js-bulk-page">Page 1</span>
+        <button class="btn btn-small btn-page js-bulk-next">Next &rarr;</button>
+      </div>
       <div class="bulk-toolbar-right">
-        <button class="btn btn-small js-bulk-prev">&larr; Prev</button>
-        <span class="chip js-bulk-page">Page 1</span>
-        <button class="btn btn-small js-bulk-next">Next &rarr;</button>
         <button class="btn btn-primary js-bulk-convert">Convert selected</button>
       </div>
     </div>
