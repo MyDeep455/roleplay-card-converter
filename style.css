@@ -706,12 +706,28 @@ textarea::-webkit-scrollbar-thumb:hover,
 
 /* ---- the greetings and the gallery, under the notes ---- */
 
-/* Both are headed. A greeting is written in the character's voice, and set
-   straight under the author's notes with nothing between them it reads as the
-   author still talking. */
-.notes-part { margin-top: 13px; }
-/* No notes on this card, so nothing to be separated from. */
-.notes-body.hidden + .notes-part { margin-top: 0; }
+/* Both are headed, and both are ruled off above. A greeting is written in the
+   character's voice, and set straight under the author's notes with nothing
+   between them it reads as the author still talking - the heading says whose
+   words these are, and the rule is what makes the join findable while
+   scrolling past, without having to stop and read the heading to place it.
+     The same hairline the pinned tags use, and deliberately: three weights of
+   divider in a panel this size would be three things to tell apart. These two
+   are told apart from the tags' rule by where they are instead - a rule that
+   scrolls is a section, the one that never moves is the foot. */
+.notes-part {
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid var(--border);
+}
+/* Nothing above it to be divided from: the first part of the column starts
+   straight under the heading, which is already set off by its own gap. Two
+   selectors because either of the two parts can be the one that comes first -
+   the second is the JanitorAI shape, where the art is all there is. */
+.notes-body.hidden + .notes-part,
+.notes-body.hidden + .notes-part.hidden + .notes-part {
+  margin-top: 0; padding-top: 0; border-top: none;
+}
 
 .notes-part-head {
   margin: 0 0 7px;
