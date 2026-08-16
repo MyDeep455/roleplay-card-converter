@@ -82,19 +82,36 @@ sheet across the bottom of the screen where there is not:
 |---|---|
 | **Token count** | how big the card is, above everything else, because it decides whether the rest is worth reading |
 | **Creator notes** | the paragraph the tagline is the first line of — what the card is for, which model it was written against, what the alternate greetings are |
+| **Greetings** | the opening messages themselves, in the author's order and numbered where there is more than one |
+| **Gallery** | the art that came with the card, as pictures rather than a count |
 | **Tags** | the site's own topic list, as chips |
 | **Lorebook** | only where the site says, which today is Character Tavern alone |
 
 All of it comes out of the same search reply the tiles were drawn from, so the panel costs no extra
-request and never leaves the grid — and a site that does not answer something simply shows one line
-fewer. That is why there is no lorebook line on a chub card: chub's search can *filter* for lore but
-never says which card has it, and finding out would cost a request per tile. A tile with nothing to
-add gets no badge at all, which today means JanitorAI, whose listing gives no tags, no size, and no
-notes field separate from the blurb already on the tile.
+request and never leaves the grid — and a site that does not answer something simply shows one part
+fewer. No site answers all six, and which parts you get is a fact about the platform rather than
+about the card:
 
-Long notes and long tag lists scroll inside their own frames rather than pushing each other off the
-panel — a card with a five-thousand-character writeup still shows its tags and its lorebook line
-without any scrolling at all.
+| | chub.ai | Character Tavern | JanitorAI |
+|---|---|---|---|
+| Token count | ✓ | ✓ | |
+| Creator notes | ✓ | ✓ | — *(its one description field is already the tile's tagline)* |
+| Greetings | | ✓ | |
+| Gallery | | | ✓ *(the art authors embed in the description)* |
+| Tags | ✓ | ✓ | ✓ |
+| Lorebook | | ✓ | |
+
+The gaps are all the same shape: the answer exists, but only behind a request per card. chub's search
+returns a null `definition` on every result, so its greetings are a fetch away and its gallery is a
+second endpoint again; a page of tiles that filled those in would be two dozen extra requests to draw
+a grid. Same story for the lorebook line on a chub card — chub's search can *filter* for lore but
+never says which card has it. A tile with nothing at all to add gets no badge in the first place.
+
+The notes, the greetings and the gallery share one scrolling column, so they read in order and
+against each other. The tags sit pinned underneath it and scroll on their own, which is what keeps
+them reachable: a card with a five-thousand-character writeup and fifty tags still shows the tags
+where they always are, rather than pushing them off the bottom of a phone with nothing able to
+scroll them back.
 
 **Prev** and **Next** page through four full rows at a time, whatever that works out to at your
 window size. Each site hands out its results in its own page size — 24 on chub, 34 on JanitorAI —

@@ -424,6 +424,13 @@ const chub = {
         // worth making.
         tags: Array.isArray(n.topics) ? n.topics.filter(Boolean) : [],
         tokens: Number(n.nTokens) || 0,
+        // No greetings and no gallery, and neither is an oversight. `definition`
+        // is null on every node this endpoint returns - with `full=true` as
+        // well - so the greetings exist only behind a per-card fetch. The
+        // gallery is worse: the node does carry `hasGallery`, but the pictures
+        // themselves are a second endpoint again, so a page of tiles that
+        // showed them would be twenty-four extra requests to draw a grid.
+        // Both stay off until the card is actually converted.
         avatarUrl: n.avatar_url || n.max_res_url || '',
         cardUrl: `https://chub.ai/characters/${n.fullPath}`,
         creator: (n.fullPath || '').split('/')[0],
@@ -677,6 +684,16 @@ const characterTavern = {
         // name for the creator's notes. The search index carries it, so it
         // arrives with the tile rather than costing a second request.
         notes: clean(h.pageDescription),
+        // This search index hands back the whole card definition inline - it is
+        // what `hitToCard` above converts from - so the greetings cost nothing
+        // extra here, unlike on chub where they are a per-card fetch. The main
+        // one first, then the alternates in the author's own order; deduped
+        // because a card that repeats its opener as "alternative 1" would
+        // otherwise show the same wall of text twice.
+        greetings: [...new Set(
+          [h.characterFirstMessage, ...(Array.isArray(h.alternativeFirstMessage) ? h.alternativeFirstMessage : [])]
+            .map(clean).filter(Boolean)
+        )],
         // The one site of the three whose listing knows about lorebooks, so it
         // is the one place the panel can say so.
         tags: Array.isArray(h.tags) ? h.tags.filter(Boolean) : [],
@@ -736,6 +753,12 @@ const JAI_SIGNED_OUT =
 
 // Any JWT, wherever it appears in what was pasted.
 const JWT_PATTERN = /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/;
+
+// A sane ceiling for one card's worth of embedded art. Authors do run to
+// dozens of images in a description, and every one of them is a picture to
+// fetch on conversion; the same figure caps the details panel so a grid of
+// tiles cannot be asked to lazy-load four hundred of them.
+const JAI_GALLERY_MAX = 24;
 
 const janitorai = {
   id: 'janitorai',
@@ -867,7 +890,7 @@ const janitorai = {
     // There is no gallery endpoint here the way chub has one. What JanitorAI
     // does have is authors embedding art in the description, so those images
     // are the gallery - same CDN, same permissive CORS as the avatar.
-    const urls = imagesFromHtml(node.description).slice(0, 24);
+    const urls = imagesFromHtml(node.description).slice(0, JAI_GALLERY_MAX);
     const gallery = [];
     for (let i = 0; i < urls.length; i++) {
       ctx.progress?.(`Gallery image ${i + 1}/${urls.length}`);
@@ -1044,6 +1067,17 @@ const janitorai = {
           ...(Array.isArray(n.tags) ? n.tags : []),
           ...(Array.isArray(n.custom_tags) ? n.custom_tags : []),
         ].map(jaiTagLabel).filter(Boolean))],
+        // No greetings either - `first_message` and `first_messages` are on the
+        // per-card object and on nothing this endpoint returns.
+        //
+        // The gallery, on the other hand, is already in hand. What passes for
+        // one on this site is the art authors embed in the description (see
+        // `fetchCardById`), and the description is the very field the tagline
+        // above is made from - so these are URLs already paid for, not a
+        // request. Kept as URLs rather than fetched into data: the panel puts
+        // them in an <img> the way the grid does with an avatar, and it is only
+        // conversion that needs them inlined into the card.
+        gallery: imagesFromHtml(n.description).slice(0, JAI_GALLERY_MAX),
         avatarUrl: this.avatarUrlFor(n.avatar),
         cardUrl: this.cardUrlFor(n.id),
         creator: clean(n.creator_name),

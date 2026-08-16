@@ -296,7 +296,6 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
 textarea,
 .bulk-card-tag,
 .notes-scroll,
-.notes-body,
 .notes-tags {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
@@ -304,25 +303,21 @@ textarea,
 textarea::-webkit-scrollbar,
 .bulk-card-tag::-webkit-scrollbar,
 .notes-scroll::-webkit-scrollbar,
-.notes-body::-webkit-scrollbar,
 .notes-tags::-webkit-scrollbar { width: 6px; }
 
 textarea::-webkit-scrollbar-track,
 .bulk-card-tag::-webkit-scrollbar-track,
 .notes-scroll::-webkit-scrollbar-track,
-.notes-body::-webkit-scrollbar-track,
 .notes-tags::-webkit-scrollbar-track { background: transparent; }
 
 textarea::-webkit-scrollbar-thumb,
 .bulk-card-tag::-webkit-scrollbar-thumb,
 .notes-scroll::-webkit-scrollbar-thumb,
-.notes-body::-webkit-scrollbar-thumb,
 .notes-tags::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 
 textarea::-webkit-scrollbar-thumb:hover,
 .bulk-card-tag::-webkit-scrollbar-thumb:hover,
 .notes-scroll::-webkit-scrollbar-thumb:hover,
-.notes-body::-webkit-scrollbar-thumb:hover,
 .notes-tags::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
 
 .btn {
@@ -648,43 +643,22 @@ textarea::-webkit-scrollbar-thumb:hover,
 .notes-title { margin: 0; font-size: 0.9rem; font-weight: 600; padding-right: 30px; }
 .notes-by { margin: 1px 0 0; font-size: 0.76rem; color: var(--text-faint); padding-right: 30px; }
 
-/* The column under the heading. It scrolls only as a last resort - the two
-   parts inside it that can run long are capped themselves, so on all but a
-   short window this never engages. */
+/* The column under the heading, and the only thing in the panel that scrolls
+   its own text: the notes, the greetings and the gallery, one after another
+   under one bar.
+     It used to cap each of those separately and scroll each in its own box,
+   which read as three portholes and behaved worse than it read. A finger that
+   landed on the inner one scrolled the inner one, and when that hit its end the
+   `overscroll-behavior: contain` below - which is right, and stays - refused to
+   pass the gesture on, so the column it sat in never moved and whatever was
+   under it stayed clipped at the panel's edge with no way to reach it. One
+   scroller has no inside to get stuck in. */
 .notes-scroll {
   margin-top: 9px;
   overflow-y: auto;
   /* Scrolling this must not carry on into the page behind it once it runs out -
      the opposite of the rule for a blurb inside a tile, which chains on purpose
      because the tile is part of the page being scrolled. */
-  overscroll-behavior: contain;
-}
-
-/* The card's size, and the first thing read. Monospace figures so a column of
-   them across different cards is comparable at a glance rather than a set of
-   differently-shaped words. */
-.notes-tokens {
-  margin: 0 0 8px;
-  font-size: 0.76rem; color: var(--text-faint);
-  font-variant-numeric: tabular-nums;
-}
-
-/* The author's own line breaks are kept - a notes field is routinely a list of
-   greetings or a changelog, and run together as one paragraph it stops being
-   either. `anywhere` because the text comes from a box on another site and
-   regularly contains a URL longer than this panel is wide.
-     Capped, and scrolling inside that cap, so that what is printed underneath
-   it stays underneath it. Notes really do run to five thousand characters -
-   a Character Tavern card with an unfolding-canon writeup was the case that
-   settled this - and with one scrollbar for the whole column its tag list sat
-   several screens below the fold, which is indistinguishable from not being
-   there. */
-.notes-body {
-  margin: 0;
-  font-size: 0.82rem; line-height: 1.5; color: var(--text-dim);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  overflow-y: auto;
   overscroll-behavior: contain;
   /* The gap between the last word of a line and the scrollbar. It belongs to
      the scrolling element rather than to the panel, because a scroll container
@@ -700,17 +674,106 @@ textarea::-webkit-scrollbar-thumb:hover,
   padding-right: 14px;
 }
 
+/* The card's size, and the first thing read. Monospace figures so a column of
+   them across different cards is comparable at a glance rather than a set of
+   differently-shaped words.
+     Part of the heading rather than the first line of the column, so it stays
+   on screen with the name it belongs to instead of scrolling away under it.
+   The gap below it is the column's own top margin. */
+.notes-tokens {
+  flex: 0 0 auto;
+  margin: 6px 0 0;
+  font-size: 0.76rem; color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The author's own line breaks are kept - a notes field is routinely a list of
+   greetings or a changelog, and run together as one paragraph it stops being
+   either. `anywhere` because the text comes from a box on another site and
+   regularly contains a URL longer than this panel is wide.
+     Uncapped now, and it scrolls with the column rather than inside itself.
+   Notes really do run to five thousand characters - a Character Tavern card
+   with an unfolding-canon writeup was the case that settled this - and the
+   reason they used to be boxed off was to stop them pushing the tag list
+   several screens below the fold. The tags are out of this scroller entirely
+   now, so that no longer buys anything. */
+.notes-body {
+  margin: 0;
+  font-size: 0.82rem; line-height: 1.5; color: var(--text-dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---- the greetings and the gallery, under the notes ---- */
+
+/* Both are headed. A greeting is written in the character's voice, and set
+   straight under the author's notes with nothing between them it reads as the
+   author still talking. */
+.notes-part { margin-top: 13px; }
+/* No notes on this card, so nothing to be separated from. */
+.notes-body.hidden + .notes-part { margin-top: 0; }
+
+.notes-part-head {
+  margin: 0 0 7px;
+  font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* The rule down the left is doing the work the quotation marks would: it marks
+   where the card's own voice starts and stops, which matters most on the cards
+   that have three of these in a row. */
+.notes-greeting {
+  margin: 0;
+  padding-left: 9px;
+  border-left: 2px solid var(--border-strong);
+  font-size: 0.82rem; line-height: 1.5; color: var(--text-dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.notes-greeting-n {
+  margin: 11px 0 3px;
+  font-size: 0.7rem; color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.notes-greeting-n:first-child { margin-top: 0; }
+
+/* Stacked at full width rather than tiled into thumbnails. These are character
+   art and page banners in whatever shape the author drew them, and a grid of
+   squares would have to crop every one to a shape none of them are. `contain`
+   inside a capped box instead: a tall portrait is held to a readable height and
+   a wide banner keeps its whole width, and neither loses anything. */
+.notes-gallery { display: grid; gap: 7px; }
+.notes-gallery img {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* ---- pinned under the column ---- */
+
 /* Chips rather than a comma-separated line: a tag list is a set of separate
    facts, and thirteen of them run together read as a sentence that does not
    parse. Wrapping is the whole layout - the count is not something the panel
-   gets to cap, since a card really can carry twenty. */
+   gets to cap, since a card really can carry twenty.
+     Below the scrolling column rather than at the end of it, so it is in the
+   same place on every card whatever length of writeup sits above it, and a
+   long one can never bury it. The rule above it says so. */
 .notes-tags {
   display: flex; flex-wrap: wrap; gap: 5px;
-  margin: 10px 0 0; padding: 0 14px 0 0;   /* the same gap before the bar */
+  flex: 0 0 auto;
+  margin: 10px 0 0;
+  padding: 10px 14px 0 0;   /* the same gap before the bar */
+  border-top: 1px solid var(--border);
   list-style: none;
   /* Fifty-one tags is a real card, not a hypothetical one, and left to itself
-     that list pushes the lorebook line off the panel. A few rows, then it
-     scrolls like the notes above it. */
+     that list takes the whole panel. A few rows, then it scrolls. It is a
+     sibling of the column above rather than a box inside it, so running out of
+     tags to scroll no longer strands the gesture. */
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -727,8 +790,16 @@ textarea::-webkit-scrollbar-thumb:hover,
    green is the one the finished-import button uses: this is the same kind of
    news, something extra arriving with the card rather than a warning. */
 .notes-lore {
+  flex: 0 0 auto;
   margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
   font-size: 0.75rem; color: var(--ok);
+}
+/* One rule between the column and its foot, not two. When the tags are there
+   they have already drawn it. */
+.notes-tags:not(.hidden) + .notes-lore {
+  margin-top: 8px; padding-top: 0; border-top: none;
 }
 
 /* ---- pinned beside a tile (a pointer, a wide window) ---- */
@@ -739,12 +810,18 @@ textarea::-webkit-scrollbar-thumb:hover,
    the gap in front of it take out of the line - without that the change that
    moved the bar to the edge would have been paid for by the text it was meant
    to give room to. */
+/* A column here as well as on the sheet. The tags and the lorebook line hang
+   below the scroller now instead of riding inside it, so the panel is that much
+   taller than its scrolling part - and `100vh - 24px` is the same clearance
+   `placeNotes` clamps to, so on a short window the column gives up height and
+   the panel still lands on screen whole rather than running off the bottom. */
 .notes-anchored .notes-pop {
   width: min(352px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  display: flex; flex-direction: column;
   animation: notes-in 0.12s ease-out;
 }
-.notes-anchored .notes-scroll { max-height: min(60vh, 430px); }
-.notes-anchored .notes-body { max-height: min(38vh, 260px); }
+.notes-anchored .notes-scroll { flex: 1 1 auto; min-height: 0; max-height: min(60vh, 430px); }
 .notes-anchored .notes-tags { max-height: 6.5em; }   /* about four rows of chips */
 .notes-anchored .notes-scrim { display: none; }
 
@@ -762,12 +839,17 @@ textarea::-webkit-scrollbar-thumb:hover,
   border-bottom: none;
   animation: notes-up 0.16s ease-out;
 }
-/* The heading stays put and everything else scrolls under it, so a long
-   changelog never leaves someone wondering which card they opened. */
+/* The heading stays put at the top and the tags at the foot; the column between
+   them takes whatever is left and scrolls. So a long changelog never leaves
+   someone wondering which card they opened, and never buries the tags either -
+   which is what a phone was doing with them, since the tag list was the part
+   that ended up over the bottom edge with nothing able to scroll it back. */
 .notes-sheet .notes-scroll { flex: 1 1 auto; min-height: 0; }
-/* Height only - the clearance before the scrollbar is the shared one above,
-   which was set from how this sheet looks. */
-.notes-sheet .notes-body { max-height: 42dvh; font-size: 0.86rem; }
+.notes-sheet .notes-body,
+.notes-sheet .notes-greeting { font-size: 0.86rem; }
+/* A third of the sheet at most. Beyond that the art is pushing off the text it
+   came with, and the column is there to be scrolled. */
+.notes-sheet .notes-gallery img { max-height: 34dvh; }
 .notes-sheet .notes-tags { max-height: 8em; }
 /* The close button is a corner of the sheet rather than a corner of a small
    popover, so the heading has further to stay clear of. */

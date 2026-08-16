@@ -279,20 +279,48 @@
 
     <!-- Which card this is stays put; everything below it scrolls, so a long
          set of notes never leaves someone reading a wall of text with no idea
-         whose it is. -->
+         whose it is.
+           The size of the card is pinned with it, because it is the one line
+         that is read in a glance and decides whether the paragraph under it is
+         worth the time - a 300-token card and a 4,000-token one are different
+         propositions whatever the author wrote about them. -->
     <p id="card-notes-title" class="notes-title"></p>
     <p id="card-notes-by" class="notes-by"></p>
+    <p id="card-notes-tokens" class="notes-tokens"></p>
 
+    <!-- ONE scroller for the three long things, not one each.
+         These are the parts of a card that are read in order and against each
+         other - what the author says about it, how it opens, what it looks
+         like - so they are one column with one bar down the side. Each having
+         its own scrollbox meant a phone showed three short windows onto three
+         walls of text, and reaching the bottom of the inner one simply stopped
+         (overscroll-behavior: contain, and rightly so - it must not drag the
+         page behind the sheet) rather than carrying on into the next part. -->
     <div id="card-notes-scroll" class="notes-scroll">
-      <!-- The size of the card first, because it is the one line that is read
-           in a glance and decides whether the paragraph under it is worth the
-           time - a 300-token card and a 4,000-token one are different
-           propositions whatever the author wrote about them. -->
-      <p id="card-notes-tokens" class="notes-tokens"></p>
       <div id="card-notes-body" class="notes-body"></div>
-      <ul id="card-notes-tags" class="notes-tags"></ul>
-      <p id="card-notes-lore" class="notes-lore"></p>
+
+      <!-- Both headed rather than bare, because a greeting is written in the
+           character's voice and reads as a continuation of the notes above it
+           unless something says otherwise. Empty and hidden until app.js finds
+           a platform whose listing carries them. -->
+      <section id="card-notes-greetings" class="notes-part hidden">
+        <h3 id="card-notes-greetings-head" class="notes-part-head">Greetings</h3>
+        <div id="card-notes-greetings-list"></div>
+      </section>
+
+      <section id="card-notes-gallery" class="notes-part hidden">
+        <h3 class="notes-part-head">Gallery</h3>
+        <div id="card-notes-gallery-list" class="notes-gallery"></div>
+      </section>
     </div>
+
+    <!-- Outside the scroller, and that is the point: the tags are the shortest
+         and most-scanned thing here, and a card with fifty of them used to
+         leave them clipped at the bottom edge of a sheet with no way to reach
+         the rest. Pinned under the column they belong to, they are always
+         where they were last time. -->
+    <ul id="card-notes-tags" class="notes-tags"></ul>
+    <p id="card-notes-lore" class="notes-lore"></p>
   </div>
 </div>
 

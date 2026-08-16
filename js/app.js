@@ -1095,19 +1095,33 @@ const notesWantSheet = () =>
  * The notes are the part that needs judging rather than copying. Both sites
  * that have the field let it be filled with anything, and what they most often
  * get is the tagline over again - so what counts as notes here is what the tile
- * is not showing already. The other three are facts: a size, a tag list, a
- * lorebook or not, each present only where the site's listing said so.
+ * is not showing already. The rest are facts: the greetings, the art, a size, a
+ * tag list, a lorebook or not, each present only where the site's listing said
+ * so, and none of them fetched. No site answers all of it - Character Tavern is
+ * the one that hands over greetings for free, JanitorAI the one whose art comes
+ * with the blurb - so the panel is assembled from what arrived rather than laid
+ * out to a fixed shape with gaps in it.
  */
 const notesFlat = s => (s || '').replace(/\s+/g, ' ').trim();
 
 function cardDetails(item) {
   const flat = notesFlat(item.notes);
   const notes = flat && !notesFlat(item.tagline).includes(flat) ? item.notes.trim() : '';
+  // Trimmed rather than flattened: a greeting is prose with the author's own
+  // paragraphs in it, and the panel keeps them the way it keeps the notes'.
+  const greetings = Array.isArray(item.greetings)
+    ? item.greetings.map(g => (typeof g === 'string' ? g.trim() : '')).filter(Boolean)
+    : [];
+  const gallery = Array.isArray(item.gallery)
+    ? item.gallery.filter(u => typeof u === 'string' && u)
+    : [];
   const tags = Array.isArray(item.tags) ? item.tags.map(t => notesFlat(t)).filter(Boolean) : [];
   const tokens = Number(item.tokens) > 0 ? Number(item.tokens) : 0;
   const lorebook = !!item.lorebook;
 
-  return notes || tags.length || tokens || lorebook ? { notes, tags, tokens, lorebook } : null;
+  return notes || greetings.length || gallery.length || tags.length || tokens || lorebook
+    ? { notes, greetings, gallery, tags, tokens, lorebook }
+    : null;
 }
 
 function openNotes(card, badge, item, details, { pinned = false } = {}) {
@@ -1128,12 +1142,11 @@ function openNotes(card, badge, item, details, { pinned = false } = {}) {
   by.textContent = item.creator ? `by ${item.creator}` : '';
   by.classList.toggle('hidden', !item.creator);
 
-  // Each of the three scrollable pieces back to the top - the panel is reused
-  // tile by tile, and a card opened after a long one would otherwise start
-  // halfway down somebody else's notes.
+  // Both scrollable pieces back to the top - the panel is reused tile by tile,
+  // and a card opened after a long one would otherwise start halfway down
+  // somebody else's notes.
   fillNotesDetails(details);
-  ['card-notes-scroll', 'card-notes-body', 'card-notes-tags']
-    .forEach(id => { $(id).scrollTop = 0; });
+  ['card-notes-scroll', 'card-notes-tags'].forEach(id => { $(id).scrollTop = 0; });
 
   notesPop.card = card;
   notesPop.badge = badge;
@@ -1160,13 +1173,13 @@ function openNotes(card, badge, item, details, { pinned = false } = {}) {
 }
 
 /**
- * Writes the four parts, and hides the ones this site did not answer.
+ * Writes the six parts, and hides the ones this site did not answer.
  *
  * Hidden rather than shown empty, and never replaced by "unknown": a panel that
  * lists what it does not know is longer, slower to read, and says nothing. A
  * chub card simply has no lorebook line, because chub's search does not say.
  */
-function fillNotesDetails({ notes, tags, tokens, lorebook }) {
+function fillNotesDetails({ notes, greetings, gallery, tags, tokens, lorebook }) {
   const tokenLine = $('card-notes-tokens');
   const body = $('card-notes-body');
   const tagList = $('card-notes-tags');
@@ -1181,6 +1194,9 @@ function fillNotesDetails({ notes, tags, tokens, lorebook }) {
   body.textContent = notes;
   body.classList.toggle('hidden', !notes);
 
+  fillNotesGreetings(greetings);
+  fillNotesGallery(gallery);
+
   // Rebuilt rather than patched - it is at most a couple of dozen short chips,
   // and the alternative is reconciling two lists on every hover.
   tagList.replaceChildren(...tags.map(tag => {
@@ -1192,6 +1208,90 @@ function fillNotesDetails({ notes, tags, tokens, lorebook }) {
 
   lore.textContent = lorebook ? 'Includes a lorebook' : '';
   lore.classList.toggle('hidden', !lorebook);
+}
+
+/**
+ * The card's opening messages, in the author's order.
+ *
+ * Numbered only when there is more than one. A lone greeting under a heading
+ * reading "Greeting 1" implies a second one somewhere that the panel is not
+ * showing, which is the opposite of what a details panel is for.
+ */
+function fillNotesGreetings(greetings) {
+  const wrap = $('card-notes-greetings');
+  wrap.classList.toggle('hidden', !greetings.length);
+  if (!greetings.length) return;
+
+  $('card-notes-greetings-head').textContent =
+    greetings.length > 1 ? `Greetings (${greetings.length})` : 'Greeting';
+
+  $('card-notes-greetings-list').replaceChildren(...greetings.flatMap((text, i) => {
+    const out = [];
+    if (greetings.length > 1) {
+      const label = document.createElement('p');
+      label.className = 'notes-greeting-n';
+      label.textContent = `${i + 1}`;
+      out.push(label);
+    }
+    const p = document.createElement('p');
+    p.className = 'notes-greeting';
+    p.textContent = text;
+    out.push(p);
+    return out;
+  }));
+}
+
+/**
+ * The art that came with the listing, as pictures rather than a count.
+ *
+ * Straight <img> off the platform's own CDN, the way the tiles draw an avatar -
+ * these are URLs the search already handed over, so a panel of them costs no
+ * request that the grid behind it has not already made. `lazy` matters here:
+ * the panel is built on every open, including the hover-opens someone skims
+ * past, and a card with two dozen images should not pull them all down for a
+ * glance that never reaches the bottom of the column.
+ *
+ * A dead link removes its own figure. Authors embed art from wherever they
+ * like and some of those hosts have since gone, and a broken-image icon in a
+ * grid of pictures reads as this tool having failed to load something.
+ */
+function fillNotesGallery(gallery) {
+  const wrap = $('card-notes-gallery');
+  wrap.classList.toggle('hidden', !gallery.length);
+  if (!gallery.length) return;
+
+  $('card-notes-gallery-list').replaceChildren(...gallery.map(url => {
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.referrerPolicy = 'no-referrer';
+    img.alt = '';
+    // A picture is the one thing in this panel with no height until it arrives,
+    // and a popover is placed from the height it had when it opened. Both ways
+    // out of that - the picture landing, or the link turning out to be dead -
+    // change how tall the panel is after it has been put somewhere.
+    img.addEventListener('load', reflowNotes, { once: true });
+    img.addEventListener('error', () => { img.remove(); reflowNotes(); }, { once: true });
+    img.src = url;
+    return img;
+  }));
+}
+
+/**
+ * Put the popover back where it belongs after its contents changed size.
+ *
+ * Only the pinned shape needs this - a sheet is fixed to the bottom of the
+ * window and does not care how tall it is. Coalesced to a frame because a card
+ * with a dozen pictures would otherwise re-measure the panel a dozen times as
+ * they land, and each measurement forces a layout.
+ */
+let notesReflowFrame = 0;
+function reflowNotes() {
+  if (!notesPop.card || notesPop.sheet || notesReflowFrame) return;
+  notesReflowFrame = requestAnimationFrame(() => {
+    notesReflowFrame = 0;
+    if (notesPop.card && !notesPop.sheet) placeNotes();
+  });
 }
 
 // Beside the tile, on whichever side has room. Beside rather than over, so the
