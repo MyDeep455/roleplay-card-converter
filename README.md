@@ -25,20 +25,13 @@ and convert it.
 | **Site** | chub.ai, Character Tavern or JanitorAI. Switching re-runs the search on the new site. |
 | **Search box** | The same words you would have typed on the site. Leave it empty to just browse. |
 | **Sort** | That site's own orderings — 13 on chub, 4 on Character Tavern, 7 on JanitorAI. |
+| **Advanced filters** | Folded away, and holds the three below. A number beside the line says how many of them are currently narrowing your search. |
 | **Tags / Exclude** | Comma-separated. Must have / must not have. |
 | **Content** | Include NSFW, hide it, or show only it. |
 
 Controls a site cannot honour are hidden rather than shown dead — JanitorAI gets no tag boxes,
-because its API accepts them and then ignores them.
-
-**Pasting still works**, and is folded away under *Or paste a link*. It is the only way to grab one
-specific card you already have open, and the only one that takes a list:
-
-| What you paste | What you get |
-|---|---|
-| A **card** link | Converted straight away |
-| A **search** or browse link | A grid of what it found; the panel above moves onto it |
-| **Several card links**, one per line | The same grid, everything preselected |
+because its API accepts them and then ignores them. They are not counted on that site either, so the
+number beside *Advanced filters* only ever means filters that are actually doing something.
 
 Converted cards are kept in your browser's own storage until you clear them. Press **Import** on any
 one of them — or **Import all** — and it lands in Casual Character Chat directly. **Download** is
@@ -74,19 +67,7 @@ site itself — nothing here is a private format.
 - **JanitorAI** has sort and a SFW/NSFW mode, and no working tag filter at all. It also needs a
   token to search — see [Tokens](#tokens).
 
-### A single card
-
-Open *Or paste a link*, paste the card's page URL, press **Convert**:
-
-- `https://chub.ai/characters/author/character-name`
-- `https://character-tavern.com/character/author/card_name`
-- `https://janitorai.com/characters/<id>_character-name`
-
-### A whole search you set up on the site
-
-Paste that too. The whole query string is carried over — search terms, tags, excluded tags, sort
-order, lorebook/OC toggles, token ranges. If the URL names a page (`&page=3`), it starts there. The
-panel above fills itself in from whatever you pasted, so the two never contradict each other.
+### Picking from the results
 
 You get a plain grid — avatar, name, tagline, creator — with checkboxes. Tick what you want and press
 **Convert selected**. The tagline is shown whole rather than trimmed: it scrolls inside the tile once
@@ -120,16 +101,11 @@ window size. Each site hands out its results in its own page size — 24 on chub
 so those are buffered behind the grid and dealt out to fit it; one press of **Next** may cost a
 request to the site, or none at all.
 
-### Several at once
-
-Paste card links one per line, mixing both sites freely. They all land in the same grid, already
-ticked. Search links cannot be mixed in — one search is hundreds of cards, so paste those on their
-own.
-
 ### Cards from anywhere else
 
 Casual Character Chat imports character card PNGs and JSON by itself, so there is nothing to convert
-first — take the file straight to the app.
+first — take the file straight to the app. That also covers a card you have already found somewhere
+else: download it on the site and hand the file to the app, no trip through here needed.
 
 ### Getting cards into Casual Character Chat
 

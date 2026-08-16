@@ -811,8 +811,8 @@ const janitorai = {
     const u = new URL(url);
     if (this.isProfileUrl(u)) {
       throw new Error(
-        'That is a creator profile. JanitorAI has no way to list one creator\'s cards, so open the ' +
-        'profile on the site and paste the card links you want instead.'
+        'That is a creator profile. JanitorAI has no way to list one creator\'s cards, so search ' +
+        'here by the card\'s name instead.'
       );
     }
     const id = this.idFrom(u);
@@ -960,7 +960,7 @@ const janitorai = {
     if (this.isProfileUrl(u)) {
       throw new Error(
         'JanitorAI has no endpoint for one creator\'s cards, so a profile page cannot be mirrored. ' +
-        'Open it on the site and paste the card links you want.'
+        'Search here by the card\'s name instead.'
       );
     }
 

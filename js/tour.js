@@ -26,7 +26,10 @@ const $ = id => document.getElementById(id);
 /* Bumping this shows the tour again to people who have already seen it. Worth
    doing when a step describes something that has genuinely changed; not worth
    doing for wording. */
-const TOUR_VERSION = 2;   // 2: searching moved into the tool; pasting became optional
+const TOUR_VERSION = 3;   // 2: searching moved into the tool; pasting became optional
+                          // 3: pasting removed, filters folded away - anyone taught
+                          //    step 2 or the paste step would be looking for controls
+                          //    that are no longer where they were left
 
 /* ---------------- the script ---------------- */
 
@@ -59,13 +62,14 @@ const STEPS = [
         + 'The sort menu on the right is that site’s own ordering, so it changes with the site.',
   },
   {
-    target: '.search-filters',
+    target: '.advanced-filters',
     place: 'bottom',
     label: 'Step 2',
     title: 'Narrow it down',
-    body: 'Tags to require, tags to shut out, and whether to include adult cards. Separate several '
-        + 'tags with commas. These follow the site too — JanitorAI has no tag boxes because its '
-        + 'search ignores them, and anything a site cannot do is hidden rather than left to fail.',
+    body: 'Open this for tags to require, tags to shut out, and whether to include adult cards. '
+        + 'Separate several tags with commas. They follow the site too — JanitorAI has no tag boxes '
+        + 'because its search ignores them. A number beside the line means something in there is '
+        + 'still narrowing your results.',
   },
   {
     target: '#bulk-grid',
@@ -76,15 +80,6 @@ const STEPS = [
         + 'searched for anything. Tick the ones you want and convert them in one click. '
         + 'Note: Some platforms (such as chub.ai) block NSFW adult content for users outside the U.S. '
         + 'You’ll need to use a VPN (e.g. NordVPN) to see all unfiltered NSFW characters there.',
-  },
-  {
-    target: '.url-fallback',
-    place: 'bottom',
-    label: 'Optional',
-    title: 'Already have a link?',
-    body: 'You never have to leave, but you still can. Open this to paste a card’s address — one link, '
-        + 'or many beneath each other — or a search page you set up on the site yourself. '
-        + 'It is the only way to grab one specific card you already have open.',
   },
   {
     target: '.results-head',

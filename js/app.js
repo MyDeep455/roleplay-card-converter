@@ -48,7 +48,6 @@ function emptyBulk() {
     keys: new Set(),       // what is already in the feed, so a page that repeats
                            // an item (trending re-orders between calls) cannot
                            // put it in the grid twice
-    startPage: 1,          // the source page the feed began at
     sourcePage: 0,         // the last source page pulled in
     sourcePages: 1,        // how many the source says it has
     sourcePageSize: 0,     // items in its first page, for the page-count estimate
@@ -56,7 +55,6 @@ function emptyBulk() {
     offset: 0,             // index in the feed of the first tile on screen
     items: [],             // the window on screen
     selected: new Set(),   // keys selected in that window
-    urlList: null,         // set when the user pasted individual card URLs
   };
 }
 
@@ -102,15 +100,12 @@ function setBusy(el, busy) {
 /**
  * A mirror is in flight.
  *
- * Both buttons that can start one go out of service for the duration, since
- * either would throw away the page being fetched; only the one actually pressed
- * carries the ring. The other is not working - it is merely unavailable, and a
- * ring on it would claim otherwise.
+ * Search is the only thing that starts one, so the button that started it is
+ * also the one that has to go out of service: a second press would throw away
+ * the page already on its way.
  */
-function setMirrorBusy(trigger, busy) {
-  $('search-btn').disabled = busy;
-  $('convert-btn').disabled = busy;
-  if (trigger) trigger.classList.toggle('is-busy', busy);
+function setMirrorBusy(busy) {
+  setBusy($('search-btn'), busy);
 }
 
 // A card the site refuses looks identical to one that does not exist, and the
@@ -421,11 +416,10 @@ $('settings-save').addEventListener('click', async () => {
  * THE SEARCH PANEL
  * -------------------------------------------------------------------------
  * Browsing used to mean leaving: set a search up on chub, copy the address
- * bar, come back, paste. The panel closes that loop, and it does so without a
- * second way of fetching anything - it builds the site's own search URL and
- * hands it to the same mirror a pasted link goes through. So there is one
- * code path from here down, and a search made here can still be opened on the
- * site, because it is that site's URL.
+ * bar, come back, paste. The panel closes that loop, and it is now the only
+ * way in - it builds the site's own search URL and hands it to the mirror. So
+ * there is one code path from here down, and a search made here can still be
+ * opened on the site, because it is that site's URL.
  *
  * What the panel can offer differs per platform and is never guessed: each
  * adapter's `search` descriptor names its sort orders and says which filters
@@ -458,12 +452,13 @@ function readCriteria() {
   };
 }
 
-/** Put criteria back into the boxes - used when a pasted link fills them in. */
+/** Put criteria back into the boxes - used by Reset filters. */
 function writeCriteria(c) {
   $('search-term').value = c.term || '';
   $('search-tags').value = (c.tags || []).join(', ');
   $('search-exclude').value = (c.excludeTags || []).join(', ');
   $('search-nsfw').value = c.nsfw || 'include';
+  updateFilterCount();
 
   // Only if this platform actually has the sort that was asked for; the
   // vocabularies do not overlap, so a stale value would silently select the
@@ -516,7 +511,40 @@ function applyPlatformSupport(adapter) {
   const hint = adapter.search.tagHint || '';
   if (s.tags) $('search-tags').placeholder = hint.replace(/^e\.g\. /, '');
 
+  // A control that has just been hidden was possibly the one being counted.
+  updateFilterCount();
   updateSearchNote(adapter);
+}
+
+/**
+ * How many of the folded-away filters are actually narrowing the search.
+ *
+ * The three of them live behind a shut disclosure, so a tag typed once and
+ * forgotten is invisible - and a search that then comes back with four cards
+ * reads as a site with nothing to offer rather than as a filter still doing its
+ * job. The number on the closed line is what makes hiding them safe.
+ *
+ * Only the ones this platform honours are counted. The boxes keep their text
+ * when the site changes, and JanitorAI's search ignores tags entirely - so
+ * counting them there would report two filters at work on a search that is not
+ * using either.
+ */
+function updateFilterCount() {
+  const s = searchAdapter().search.supports;
+  const c = readCriteria();
+
+  const n = (s.tags && c.tags.length ? 1 : 0)
+          + (s.excludeTags && c.excludeTags.length ? 1 : 0)
+          + (s.nsfw && c.nsfw !== 'include' ? 1 : 0);
+
+  // A bare numeral in the badge, spelled out for anyone who cannot see it is a
+  // badge: "Advanced filters 2" is only a sentence to someone looking at it.
+  const el = $('filter-count');
+  const words = `${n} filter${n === 1 ? '' : 's'} set`;
+  el.textContent = n ? String(n) : '';
+  el.title = words;
+  el.setAttribute('aria-label', words);
+  el.classList.toggle('hidden', !n);
 }
 
 /**
@@ -546,9 +574,9 @@ function updateSearchNote(adapter) {
 /**
  * Redraw the panel for whichever platform is now chosen.
  *
- * Deliberately does not search - it is also how the panel is set up at boot
- * and how a pasted link fills it in, and neither of those wants a fetch. The
- * listener below adds that for the one case that does.
+ * Deliberately does not search - it is also how the panel is set up at boot,
+ * which does not want a fetch. The listener below adds that for the case that
+ * does.
  */
 function onPlatformChange() {
   const adapter = searchAdapter();
@@ -584,40 +612,14 @@ function narrowingHint(adapter, criteria) {
 function runSearch() {
   const adapter = searchAdapter();
 
-  // Same reason handleInput sets it: this is the person's own request, and a
-  // suggestion load still in flight must not land on top of it.
+  // This is the person's own request, so a suggestion load still in flight must
+  // not land on top of it.
   discoverSuperseded = true;
 
   const criteria = { ...emptyCriteria(), ...readCriteria() };
   const url = adapter.search.build(criteria);
 
-  // Straight to the mirror, exactly as a pasted search link would have gone.
-  // Page 1 always: this is a new search, not a continuation of one.
-  //
-  // Search is named as the trigger so it wears the ring, including when it was
-  // not the thing pressed - changing site or ordering runs a search too, and
-  // the button is where anyone would look to see whether one is running.
-  return startMirror(1, url, narrowingHint(adapter, criteria), $('search-btn'));
-}
-
-/**
- * Point the panel at whatever was just pasted.
- *
- * Without this the two halves drift apart the moment someone pastes a link:
- * the grid would show a chub search for "elf" while the panel above it still
- * read Character Tavern with an empty box, and the next press of Search would
- * throw away the results on screen for no reason the person could see.
- */
-function syncPanelToUrl(adapter, url) {
-  if (!adapter.search) return;
-  try {
-    $('search-platform').value = adapter.id;
-    onPlatformChange();
-    writeCriteria({ ...emptyCriteria(), ...adapter.search.parse(url) });
-  } catch {
-    // A link the panel cannot express is still a perfectly good link to
-    // mirror - it just leaves the controls where they were.
-  }
+  return startMirror(url, narrowingHint(adapter, criteria));
 }
 
 function initSearchPanel() {
@@ -639,19 +641,26 @@ $('search-platform').addEventListener('change', () => {
 
 $('search-btn').addEventListener('click', runSearch);
 
-// Enter submits here, unlike in the paste box below. That box holds a list and
-// a key that submitted it would cut a paste short; this is one line, and a
-// search field that ignores Enter feels broken.
+// A one-line search field that ignores Enter feels broken, so all three submit.
 ['search-term', 'search-tags', 'search-exclude'].forEach(id => {
   $(id).addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
   });
 });
 
+// The badge on the shut section counts what is typed, not what was last
+// searched for - it is there to be read on the way to pressing Search.
+['search-tags', 'search-exclude'].forEach(id => {
+  $(id).addEventListener('input', updateFilterCount);
+});
+
 // Changing the ordering or the safety filter is a new search every time, so it
 // runs itself rather than leaving a stale grid under a changed menu.
 $('search-sort').addEventListener('change', runSearch);
-$('search-nsfw').addEventListener('change', runSearch);
+$('search-nsfw').addEventListener('change', () => {
+  updateFilterCount();
+  runSearch();
+});
 
 $('search-reset').addEventListener('click', () => {
   const adapter = searchAdapter();
@@ -659,104 +668,7 @@ $('search-reset').addEventListener('click', () => {
   runSearch();
 });
 
-/* =========================================================================
- * ONE INPUT
- * -------------------------------------------------------------------------
- * A card link and a search link were separate tabs, which made the person
- * classify their own URL before pasting it - and get it wrong, because the
- * difference is not obvious from looking at one. The adapters already know
- * which is which, so the box takes anything and routes it here instead.
- * ========================================================================= */
-
-// Enter deliberately does nothing but start a new line. The box accepts a list,
-// so a key that submits it would cut one short mid-paste - and pressing Convert
-// is no harder than reaching for Enter.
-$('convert-btn').addEventListener('click', handleInput);
-
-async function handleInput() {
-  const status = $('bulk-status');
-  const lines = $('url-input').value.split('\n').map(l => l.trim()).filter(Boolean);
-
-  if (!lines.length) return setStatus(status, 'Paste a link first.', 'error');
-
-  // From here on this is the person's own request, so a slow suggestion load
-  // that finishes later must not overwrite it.
-  discoverSuperseded = true;
-  if (lines.length > 1) return loadUrlList(lines, status);
-
-  const raw = lines[0];
-  let adapter, url;
-  try {
-    ({ adapter, url } = adapterForUrl(raw));
-  } catch (err) {
-    return setStatus(status, err.message || String(err), 'error');
-  }
-
-  if (adapter.isLibraryUrl(url)) {
-    // Move the panel onto what was just pasted, so the controls describe the
-    // grid rather than contradicting it.
-    syncPanelToUrl(adapter, url);
-    return startMirror(pageFromUrl(raw));
-  }
-  return convertSingle(raw, adapter);
-}
-
-async function convertSingle(raw, adapter) {
-  const status = $('bulk-status');
-  const btn = $('convert-btn');
-  setBusy(btn, true);
-  try {
-    setStatus(status, `Fetching from ${adapter.label}...`, 'busy');
-
-    // A single card replaces whatever a previous search left on screen, so the
-    // grid is not still offering picks that have nothing to do with the result.
-    clearBulkGrid();
-
-    const card = await adapter.fetchCard(raw, {
-      token: state.tokens[adapter.id] || null,
-      progress: msg => setStatus(status, `${adapter.label}: ${msg}...`, 'busy'),
-    });
-
-    const character = toCccCharacter(card);
-    await storeCharacter(character, { platform: card.sourcePlatform || adapter.label, sourceUrl: raw });
-    await renderResults();
-    notePartialCards(isPartialJanitorCard(adapter, character) ? 1 : 0);
-
-    const extras = [];
-    if (character.gallery.length) extras.push(`${character.gallery.length} gallery image(s)`);
-    if (character.scenarios.length) extras.push(`${character.scenarios.length} greeting(s)`);
-    if (character.loreEntries.length) extras.push(`${character.loreEntries.length} lore entries`);
-
-    setStatus(status,
-      `Converted "${character.name}"${extras.length ? ' - ' + extras.join(', ') : ''}. See below.`,
-      'ok');
-    $('url-input').value = '';
-
-    // Only the name here. The counts of greetings and gallery images are worth
-    // reading, but not in something that is gone in under three seconds - they
-    // stay in the status line for as long as anyone wants them.
-    showToast(`Converted "${character.name}"`);
-    scrollToResults();
-  } catch (err) {
-    setStatus(status, describeError(err), 'error');
-  } finally {
-    setBusy(btn, false);
-  }
-}
-
 /* ---------------- bulk mirror ---------------- */
-
-// Mirroring starts on the page the pasted URL asks for. Copying a URL while on
-// page 4 of a library and landing back on page 1 is the same class of surprise
-// as a dropped filter.
-function pageFromUrl(raw) {
-  try {
-    const n = Number(new URL(raw.trim()).searchParams.get('page'));
-    return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
-  } catch {
-    return 1;
-  }
-}
 
 // Pulls source pages into the feed until it holds `need` items or the source
 // runs out. One press of Next can therefore cost a request, two, or none at
@@ -770,8 +682,8 @@ async function fillFeed(need) {
       token: state.tokens[b.adapter.id] || null,
     });
 
-    // Something else took the grid over while this was in flight - a pasted
-    // link, a cleared page. Whatever it was, it is now what the person asked
+    // Something else took the grid over while this was in flight - another
+    // search, a cleared page. Whatever it was, it is now what the person asked
     // for, and this reply belongs to a question they have moved on from.
     if (state.bulk !== b) return;
 
@@ -781,10 +693,10 @@ async function fillFeed(need) {
 
     // What a full page of this site holds. The site's own figure first, because
     // the page that arrived is not evidence of it: the last page of any search
-    // is a short one, so entering a library at its end - a pasted link to page
-    // 1520 of 1520 - used to teach this that pages were 16 cards long and report
-    // a 36,472-card search as 24,320. Falls back to the largest page actually
-    // seen, which can then only correct the figure upwards.
+    // is a short one, so a search that lands on its end used to teach this that
+    // pages were 16 cards long and report a 36,472-card search as 24,320. Falls
+    // back to the largest page actually seen, which can then only correct the
+    // figure upwards.
     b.sourcePageSize = Math.max(b.sourcePageSize, result.pageSize || 0, items.length);
 
     if (!b.sourceTotal && result.total) b.sourceTotal = result.total;
@@ -800,15 +712,15 @@ async function fillFeed(need) {
   }
 }
 
-// Paging walks the feed rather than re-running the search, so editing the text
-// without pressing Convert cannot send you to a page of something else, and
+// Paging walks the feed rather than re-running the search, so editing the panel
+// without pressing Search cannot send you to a page of something else, and
 // stepping back costs nothing - those items are already here.
 onAll('.js-bulk-prev', 'click', () => stepBulkPage(-1));
 onAll('.js-bulk-next', 'click', () => stepBulkPage(1));
 
 async function stepBulkPage(dir) {
   const b = state.bulk;
-  if (b.urlList || !b.adapter) return;
+  if (!b.adapter) return;
 
   const per = tilesPerPage();
   const at = Math.max(0, b.offset + dir * per);
@@ -848,17 +760,19 @@ async function stepBulkPage(dir) {
   }
 }
 
-// `emptyHint` is only ever read when the search comes back with nothing, and
-// only the panel passes one - a pasted URL has no controls to point at.
+// `sourceUrl` is the site's own search URL, built by the panel above from what
+// is in its boxes - so what gets mirrored is that site's own search, addressed
+// the way that site addresses it.
 //
-// `trigger` is the button that started this, and only decides which one wears
-// the ring; both are taken out of service either way. It defaults to Convert
-// because that is the one in the paste box below, which is the caller that does
-// not pass anything.
-async function startMirror(page, sourceUrl = null, emptyHint = '', trigger = null) {
+// Always from the beginning of it. This only ever runs on a search someone has
+// just asked for, and page 4 of the last one is no part of that; `stepBulkPage`
+// is what walks onwards from here.
+//
+// `emptyHint` is only ever read when the search comes back with nothing, and
+// names which of the panel's controls is the likely culprit.
+async function startMirror(sourceUrl, emptyHint = '') {
   const status = $('bulk-status');
-  const raw = (sourceUrl || $('url-input').value).trim();
-  if (!raw) return setStatus(status, 'Paste a link first.', 'error');
+  const raw = (sourceUrl || '').trim();
 
   try {
     const { adapter } = adapterForUrl(raw);
@@ -869,11 +783,11 @@ async function startMirror(page, sourceUrl = null, emptyHint = '', trigger = nul
     setStatus(
       status,
       coldStart
-        ? `Mirroring page ${page} of ${adapter.label}... (waking the cloud proxy, this can take up to a minute the first time)`
-        : `Mirroring page ${page} of ${adapter.label}...`,
+        ? `Mirroring ${adapter.label}... (waking the cloud proxy, this can take up to a minute the first time)`
+        : `Mirroring ${adapter.label}...`,
       'busy'
     );
-    setMirrorBusy(trigger || $('convert-btn'), true);
+    setMirrorBusy(true);
 
     // Placeholder tiles for the same reason the opening grid uses them: a
     // search that replaces the grid has to look like it is being answered from
@@ -888,12 +802,7 @@ async function startMirror(page, sourceUrl = null, emptyHint = '', trigger = nul
     // another - tiles that tick but convert nothing. On failure the previous
     // one goes back, and the tiles on screen are its own again.
     const previous = state.bulk;
-    const mine = { ...emptyBulk(),
-      adapter, url: raw,
-      startPage: page,
-      sourcePage: page - 1,      // nothing pulled in yet; the fill starts here
-      sourcePages: page,         // raised to the real figure by the first reply
-    };
+    const mine = { ...emptyBulk(), adapter, url: raw };
     state.bulk = mine;
 
     try {
@@ -919,120 +828,14 @@ async function startMirror(page, sourceUrl = null, emptyHint = '', trigger = nul
     // back on screen rather than left as tiles that will never fill in.
     renderBulkGrid();
   } finally {
-    setMirrorBusy(trigger || $('convert-btn'), false);
+    setMirrorBusy(false);
   }
 }
 
-// Only the URL is known before a card is fetched, so the picker shows what can
-// be read from it. Both sites end their card paths with a slug, and chub hangs
-// a hex id off the end of its own - which is noise beside a real thumbnail, so
-// it goes.
-function nameFromCardUrl(line) {
-  const slug = decodeURIComponent(line.split('?')[0].split('/').filter(Boolean).pop() || line);
-  const words = slug.replace(/-[0-9a-f]{6,}$/i, '').replace(/[-_]+/g, ' ').trim();
-  return words ? words.replace(/\b[a-z]/g, c => c.toUpperCase()) : slug;
-}
-
-// Both sites use .../<author>/<slug>, so the segment before the slug is who
-// made it - the same thing the grid shows for a mirrored search.
-function creatorFromCardUrl(line) {
-  const parts = line.split('?')[0].split('/').filter(Boolean);
-  return parts.length >= 2 ? decodeURIComponent(parts[parts.length - 2]) : '';
-}
-
-// Several links at once land in the same grid a search does, so a hand-collected
-// batch is reviewed and ticked exactly like a set of search results.
-function loadUrlList(lines, status) {
-  const items = [];
-  const bad = [];
-  const searches = [];
-
-  lines.forEach(line => {
-    try {
-      const { adapter, url } = adapterForUrl(line);
-
-      // A search among a list of cards has no sensible meaning - it would be
-      // one entry standing for hundreds - so it is called out rather than
-      // quietly converted into a single broken row.
-      if (adapter.isLibraryUrl(url)) return searches.push(line);
-
-      items.push({
-        key: line,
-        name: nameFromCardUrl(line),
-        tagline: adapter.label,
-        // Both sites put the card image at a path derived from the card's own
-        // URL, so the picker can show real thumbnails here without fetching
-        // each card first. A URL that turns out wrong falls back to the same
-        // "no image" placeholder as before.
-        avatarUrl: adapter.avatarFromCardUrl?.(url) || '',
-        cardUrl: line,
-        creator: creatorFromCardUrl(line),
-      });
-    } catch {
-      bad.push(line);
-    }
-  });
-
-  if (!items.length) {
-    return setStatus(status,
-      searches.length
-        ? 'Those are search links. Paste one on its own to browse what it finds.'
-        : 'None of those are chub.ai or Character Tavern card links.',
-      'error');
-  }
-
-  state.bulk = {
-    ...emptyBulk(),
-    items, selected: new Set(items.map(i => i.key)), urlList: true,
-  };
-  renderBulkGrid();
-  hydrateListAvatars(items);
-
-  const notes = [];
-  if (searches.length) notes.push(`${searches.length} search link(s) skipped - paste those one at a time`);
-  if (bad.length) notes.push(`${bad.length} unsupported and skipped`);
-
-  setStatus(status,
-    `${items.length} card link(s) loaded and selected.${notes.length ? ' ' + notes.join('; ') + '.' : ''}`,
-    notes.length ? 'error' : 'ok');
-}
-
-// A pasted link usually becomes a thumbnail for free, because chub and
-// Character Tavern both derive the card image from the card's own URL. On
-// JanitorAI it cannot: the avatar's filename appears nowhere in the URL, so it
-// has to be asked for. Adapters that need that expose `hydrateAvatars`, and
-// this lets them fill the tiles in after the grid is already up rather than
-// holding a blank page while a list of links is looked up one by one.
-//
-// Whatever it was working on stops mattering the moment the grid is replaced,
-// which `generation` is for - a slow reply for a previous paste must not
-// redraw tiles that are no longer on screen.
+// Bumped whenever the grid is replaced, so a thumbnail that was still being
+// looked up for the page before it cannot draw itself over the page that took
+// its place.
 let avatarGeneration = 0;
-
-function hydrateListAvatars(items) {
-  const mine = ++avatarGeneration;
-  const byAdapter = new Map();
-
-  items.forEach(item => {
-    let adapter;
-    try { ({ adapter } = adapterForUrl(item.cardUrl)); } catch { return; }
-    if (typeof adapter.hydrateAvatars !== 'function') return;
-    if (!byAdapter.has(adapter)) byAdapter.set(adapter, []);
-    byAdapter.get(adapter).push(item);
-  });
-
-  byAdapter.forEach((group, adapter) => {
-    adapter.hydrateAvatars(group, {
-      token: state.tokens[adapter.id] || null,
-      cancelled: () => avatarGeneration !== mine,
-      onItem: (item, patch) => {
-        if (avatarGeneration !== mine) return;
-        Object.assign(item, patch);
-        renderBulkGrid();
-      },
-    }).catch(() => { /* thumbnails are decoration; the links still convert */ });
-  });
-}
 
 /* =========================================================================
  * OPENING SUGGESTIONS
@@ -1055,8 +858,8 @@ const DISCOVER_URL = (() => {
   return a.search.build({ ...emptyCriteria(), sort: a.search.defaultSort });
 })();
 
-// The moment someone pastes their own link, whatever this was loading stops
-// mattering - a late reply must not replace what they actually asked for.
+// The moment someone runs a search of their own, whatever this was loading
+// stops mattering - a late reply must not replace what they actually asked for.
 let discoverSuperseded = false;
 
 /* ---------------- the shape of the grid ---------------- */
@@ -1096,7 +899,7 @@ window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(async () => {
     const b = state.bulk;
-    if (b.urlList || !b.feed.length) return;
+    if (!b.feed.length) return;
     try { await fillFeed(b.offset + tilesPerPage()); } catch { /* keep what is here */ }
     if (state.bulk === b) renderBulkGrid();
   }, 200);
@@ -1164,15 +967,15 @@ function clearBulkGrid() {
   renderBulkGrid();
 }
 
-// What is on screen came from somewhere - a search, a suggestion, or a paste -
-// and after a few conversions it is easy to lose track of which. This names it,
-// and links back so the same page can be reopened on the site itself.
+// What is on screen came from somewhere - a search of your own or the opening
+// suggestions - and after a few conversions it is easy to lose track of which.
+// This names it, and links back so the same page can be reopened on the site.
 function renderBulkSource() {
   const el = $('bulk-source');
   const hint = $('bulk-hint');
-  const { url, urlList, items } = state.bulk;
+  const { url, items } = state.bulk;
 
-  if (!items.length || (!url && !urlList)) {
+  if (!items.length || !url) {
     el.classList.add('hidden');
     el.innerHTML = '';
     hint.classList.add('hidden');
@@ -1181,17 +984,14 @@ function renderBulkSource() {
   }
 
   el.classList.remove('hidden');
-  el.innerHTML = urlList
-    ? `Currently showing <strong>${items.length}</strong> pasted link(s)`
-    : `Currently showing card(s) from: <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
+  el.innerHTML =
+    `Currently showing card(s) from: <a href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
 
   // A page of search results is a shelf, not an order - nothing below it is
-  // converted until it is picked. Pasted links arrive already ticked, so the
-  // step being asked for is the opposite one.
+  // converted until it is picked, so the line says which step is being asked
+  // for rather than leaving the grid looking like something already underway.
   hint.classList.remove('hidden');
-  hint.innerHTML = urlList
-    ? 'All selected &rarr; untick any you don\'t want &rarr; click "Convert selected"'
-    : 'Select any characters &rarr; Convert &rarr; Import to Casual Character Chat';
+  hint.innerHTML = 'Select any characters &rarr; Convert &rarr; Import to Casual Character Chat';
 }
 
 // How many cards this search has to offer, not how many are on screen - the
@@ -1544,10 +1344,10 @@ function renderBulkGrid() {
   // is pinned to.
   closeNotes();
 
-  // Pasted links are a list, not a library: there is no page after them, so all
-  // of them are shown - windowing that would hide links someone chose by hand.
+  // The window on screen is cut from the feed every time, so a grid that has
+  // been re-columned by a resize is re-cut to match it.
   const per = tilesPerPage();
-  if (!b.urlList) b.items = b.feed.slice(b.offset, b.offset + per);
+  b.items = b.feed.slice(b.offset, b.offset + per);
 
   grid.innerHTML = '';
   renderBulkSource();
@@ -1564,12 +1364,10 @@ function renderBulkGrid() {
   // "Page 1 / 1.520" reads as a decimal rather than as page 1 of 1520. The card
   // count in the status line is a real quantity, and is grouped.
   const page = Math.floor(b.offset / per) + 1;
-  setText('.js-bulk-page', b.urlList
-    ? `${fmt(b.items.length)} URLs`
-    : `Page ${page} / ${bulkPageCount(per, page)}`);
-  setDisabled('.js-bulk-prev', b.urlList || b.offset === 0);
-  setDisabled('.js-bulk-next', b.urlList ||
-    (b.offset + per >= b.feed.length && b.sourcePage >= b.sourcePages));
+  setText('.js-bulk-page', `Page ${page} / ${bulkPageCount(per, page)}`);
+  setDisabled('.js-bulk-prev', b.offset === 0);
+  setDisabled('.js-bulk-next',
+    b.offset + per >= b.feed.length && b.sourcePage >= b.sourcePages);
 
   state.bulk.items.forEach(item => {
     const card = document.createElement('div');
@@ -1692,9 +1490,9 @@ onAll('.js-bulk-convert', 'click', async () => {
     text.textContent = `${done + failed} / ${chosen.length} - ${item.name}`;
 
     try {
-      // A mirrored library entry knows its own platform; a pasted URL is
-      // resolved per line, so a mixed list converts in one run.
-      const adapter = state.bulk.adapter || adapterForUrl(item.cardUrl).adapter;
+      // Every tile in the grid came from one mirrored library, so the platform
+      // is the grid's rather than something to work out per card.
+      const adapter = state.bulk.adapter;
       const card = await adapter.fetchCard(item.cardUrl, {
         token: state.tokens[adapter.id] || null,
         progress: msg => { text.textContent = `${done + failed} / ${chosen.length} - ${item.name}: ${msg}`; },
@@ -1746,8 +1544,8 @@ onAll('.js-bulk-convert', 'click', async () => {
 
 // A conversion is started at the top of the page and lands at the bottom of it,
 // and on a phone those are a screen or more apart - the old behaviour left the
-// person looking at an unchanged paste box, with the only sign of success a
-// line of text below it saying "see below". So the page goes there itself.
+// person looking at an unchanged grid, with the only sign of success a line of
+// text below it saying "see below". So the page goes there itself.
 //   The toast exists because the scroll on its own is ambiguous: the screen
 // moves, but nothing says whether that was a success, a failure, or a page
 // jumping around. It is deliberately not put in the status line, which is up at
@@ -1869,7 +1667,7 @@ async function renderResults() {
 // they do not have.
 function updateJaiInfo() {
   const b = state.bulk;
-  const show = !state.tokens.janitorai && !b.urlList &&
+  const show = !state.tokens.janitorai &&
     b.adapter?.id === 'janitorai' && b.items.length > 0;
 
   $('jai-info-wrap').classList.toggle('hidden', !show);

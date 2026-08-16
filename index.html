@@ -50,49 +50,44 @@
         <button id="search-btn" class="btn btn-primary">Search</button>
       </div>
 
-      <div class="search-filters">
-        <label class="search-field" id="search-tags-field">
-          <span>Tags</span>
-          <input id="search-tags" type="text" autocomplete="off" spellcheck="false" placeholder="fantasy, romance" />
-        </label>
-        <label class="search-field" id="search-exclude-field">
-          <span>Exclude</span>
-          <input id="search-exclude" type="text" autocomplete="off" spellcheck="false" placeholder="gore" />
-        </label>
-        <label class="search-field" id="search-nsfw-field">
-          <span>Content</span>
-          <select id="search-nsfw">
-            <option value="include">Include NSFW</option>
-            <option value="exclude">Hide NSFW</option>
-            <option value="only">NSFW only</option>
-          </select>
-        </label>
-        <button id="search-reset" class="btn btn-small btn-ghost">Reset filters</button>
-      </div>
+      <!-- ---------------------------------------------------------------
+           Folded away, because a search works without any of it: three fields
+           and a button nobody had set were taking a whole screen of a phone
+           above the results they were meant to narrow.
+           The count beside the summary is what makes folding them away safe.
+           A filter left set is invisible once this is shut, so a search that
+           comes back thin would look like a site with nothing to offer - the
+           closed line has to say that something is still narrowing it, and
+           counts only the filters *this* platform actually honours.
+           --------------------------------------------------------------- -->
+      <details class="advanced-filters">
+        <summary>Advanced filters<span id="filter-count" class="filter-count hidden"></span></summary>
+        <div class="search-filters">
+          <label class="search-field" id="search-tags-field">
+            <span>Tags</span>
+            <input id="search-tags" type="text" autocomplete="off" spellcheck="false" placeholder="fantasy, romance" />
+          </label>
+          <label class="search-field" id="search-exclude-field">
+            <span>Exclude</span>
+            <input id="search-exclude" type="text" autocomplete="off" spellcheck="false" placeholder="gore" />
+          </label>
+          <label class="search-field" id="search-nsfw-field">
+            <span>Content</span>
+            <select id="search-nsfw">
+              <option value="include">Include NSFW</option>
+              <option value="exclude">Hide NSFW</option>
+              <option value="only">NSFW only</option>
+            </select>
+          </label>
+          <button id="search-reset" class="btn btn-small btn-ghost">Reset filters</button>
+        </div>
+      </details>
 
       <!-- Filled by app.js when the chosen platform cannot do what the panel
            appears to offer - JanitorAI refusing to search without a token is
            the case that matters, because it fails rather than returning less. -->
       <p id="search-note" class="search-note hidden"></p>
     </div>
-
-    <!-- ---------------------------------------------------------------
-         Pasting is now the fallback rather than the way in, so it is folded
-         away instead of being the first thing on the page. It is still the
-         only route for a specific card someone already has open, and the only
-         one that takes a list, so it is one click away and never further.
-         --------------------------------------------------------------- -->
-    <details id="url-fallback" class="url-fallback">
-      <summary>Or paste a link &mdash; a single card, several cards, or a whole search page</summary>
-      <div class="row">
-        <!-- Line breaks inside an attribute have to be &#10; - a <br /> would show
-             up as those five literal characters. & must be &amp; for the same
-             reason: it starts an entity wherever it appears. -->
-        <textarea id="url-input" rows="5" spellcheck="false"
-          placeholder="character card URLs:&#10;e.g. https://chub.ai/characters/Anonymous/alice-the-bully-40f0cc011ae1&#10;e.g. https://character-tavern.com/character/makima/Alice%20the%20bully&#10;&#10;or whole search URL:&#10;e.g. https://chub.ai/characters?sort=trending"></textarea>
-        <button id="convert-btn" class="btn btn-primary">Convert</button>
-      </div>
-    </details>
 
     <div id="bulk-status" class="status"></div>
 

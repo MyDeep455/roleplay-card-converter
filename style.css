@@ -126,24 +126,11 @@ code {
 main, .results { max-width: 1500px; margin: 0 auto; padding: 24px; }
 .results { border-top: 1px solid var(--border); margin-top: 8px; }
 
-.row { display: flex; gap: 10px; flex-wrap: wrap; }
-
-/* The one input takes a single link most of the time but has to accept several
-   pasted at once, so it is a textarea sized to look like a field rather than a
-   writing surface, and the button lines up with its first row. */
-.row #url-input {
-  flex: 1 1 340px;
-  resize: vertical;
-  min-height: 46px;
-  line-height: 1.45;
-}
-.row .btn { align-self: flex-start; }
-
 /* ---------------- the search panel ---------------- */
 
 /* Raised off the page rather than drawn as another row of the form, because
    this is the thing the tool is now for: everything below it - the grid, the
-   paste box, the results - is a consequence of what is set here. */
+   results - is a consequence of what is set here. */
 .search-panel {
   margin-top: 14px;
   padding: 14px;
@@ -172,9 +159,8 @@ main, .results { max-width: 1500px; margin: 0 auto; padding: 24px; }
   gap: 10px 14px;
   flex-wrap: wrap;
   align-items: flex-end;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 .search-field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 170px; min-width: 0; }
 .search-field > span { font-size: 0.75rem; color: var(--text-faint); letter-spacing: 0.02em; }
@@ -189,37 +175,54 @@ main, .results { max-width: 1500px; margin: 0 auto; padding: 24px; }
   color: var(--warn);
 }
 
-/* ---------------- the paste fallback ---------------- */
+/* ---------------- the folded-away filters ---------------- */
 
-/* Folded away by default. Pasting is still the only route to one specific
-   card and the only one that takes a list, so it stays a click away - but it
-   is no longer the first thing the page asks for. */
-.url-fallback { margin-top: 14px; }
+/* Shut by default, and separated from the search line by the same rule the
+   filters themselves used to carry - the line belongs to the boundary between
+   the two, not to whichever of them happens to be showing. */
+.advanced-filters {
+  margin-top: 12px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
 
-.url-fallback > summary {
+.advanced-filters > summary {
   cursor: pointer;
   font-size: 0.85rem;
   color: var(--text-dim);
   padding: 6px 0;
   list-style: none;
 }
-.url-fallback > summary::-webkit-details-marker { display: none; }
+.advanced-filters > summary::-webkit-details-marker { display: none; }
 
 /* Drawn rather than left to the browser's own triangle, which differs per
    engine and sits at a different distance from the text in each. */
-.url-fallback > summary::before {
+.advanced-filters > summary::before {
   content: "\25B8";
   display: inline-block;
   margin-right: 8px;
   color: var(--text-faint);
   transition: transform 0.15s ease;
 }
-.url-fallback[open] > summary::before { transform: rotate(90deg); }
-.url-fallback > summary:hover { color: var(--text); }
-.url-fallback .row { margin-top: 10px; }
+.advanced-filters[open] > summary::before { transform: rotate(90deg); }
+.advanced-filters > summary:hover { color: var(--text); }
+
+/* How many filters are set behind a shut section. Reads as a badge rather than
+   as more of the sentence, because it is the one part of that line that
+   changes on its own. */
+.filter-count {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  vertical-align: 1px;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .url-fallback > summary::before { transition: none; }
+  .advanced-filters > summary::before { transition: none; }
 }
 
 /* One column below the point where a search line and two menus stop fitting
@@ -1132,14 +1135,6 @@ textarea::-webkit-scrollbar-thumb:hover,
   main, .results { padding: 18px 16px; }
   .results { margin-top: 4px; padding-top: 22px; }
 
-  /* ---------------- the paste box ---------------- */
-
-  /* One column. The button belongs under the box it acts on, at its full
-     width - wrapped, it came out as a stub in the bottom-left corner that read
-     as leftover rather than as the next step. */
-  .row #url-input { flex: 1 1 100%; height: 150px; min-height: 110px; }
-  .row .btn { align-self: stretch; width: 100%; padding: 13px 16px; font-size: 0.95rem; }
-
   /* ---------------- form controls ---------------- */
 
   /* 16px exactly, and not a fraction less. Below that iOS Safari zooms the
@@ -1147,16 +1142,6 @@ textarea::-webkit-scrollbar-thumb:hover,
      the tool is left scrolled sideways with no way back short of pinching. */
   input[type="url"], input[type="text"], input[type="password"], textarea { font-size: 16px; }
   textarea { line-height: 1.5; }
-
-  /* The 16px above is for text being typed; the placeholder is a different
-     problem. It is six lines of example URLs, and at 16px monospace each of
-     them wraps two or three times over - the box fills up, the last examples
-     fall out of sight below the fold, and what is left reads as a wall. The
-     placeholder is a pseudo-element, so it can be sized on its own: shrinking
-     it here does not touch the field's own font-size and so does not bring the
-     iOS focus-zoom back. Small enough that the longest example line wraps once
-     at most and the whole hint sits inside the box. */
-  #url-input::placeholder { font-size: 0.7rem; line-height: 1.45; }
 
   /* ---------------- buttons and small text ---------------- */
 
@@ -1395,11 +1380,6 @@ textarea::-webkit-scrollbar-thumb:hover,
   .btn-small { padding: 8px; font-size: 0.8rem; }
   .bulk-grid { gap: 8px; }
   .notice { padding-left: 12px; }
-
-  /* Roughly 40 characters less width than the box the size above was picked
-     for, so the example URLs start wrapping again unless it comes down a step
-     with the screen. */
-  #url-input::placeholder { font-size: 0.63rem; }
 }
 
 /* A touch screen has no way to stop hovering: whatever was tapped last keeps
