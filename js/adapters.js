@@ -32,9 +32,17 @@
  * report a library a third of its real size.
  *
  * A library `item` carries only what the mirror needs to draw a tile and fetch
- * the card later: name, tagline, avatar URL, creator. Star counts, download
+ * the card later: name, tagline, avatar URL, creator, and the creator's notes
+ * where the site keeps them as a field of their own. Star counts, download
  * totals, chat/message counts, ratings and comments are read past and dropped -
  * they are not part of a character card and never reach the output.
+ *
+ * `notes` is the author's message about the card - what chub calls Creator's
+ * notes and Character Tavern calls the page description. It is shown in the
+ * grid on demand and goes no further: the conversion still drops it, for the
+ * reasons in convert.js. Both sites hand it over with the listing itself, so
+ * carrying it costs no extra request; JanitorAI has no such field, and what it
+ * does have is already this adapter's `tagline`.
  * ========================================================================= */
 
 import { getJson, getBlob, httpGet } from './transport.js';
@@ -372,6 +380,13 @@ const chub = {
         key: n.fullPath,
         name: n.name || n.fullPath,
         tagline: clean(n.tagline),
+        // The site's own Creator's notes box, and a separate field from the
+        // tagline above - `definition.description` is the character's, this one
+        // is the author's. Plenty of cards repeat the tagline here or leave
+        // chub's "Creator's notes go here." placeholder in place, which is the
+        // grid's problem rather than this one's: it shows the notes only where
+        // they say something the tile does not.
+        notes: clean(n.description),
         avatarUrl: n.avatar_url || n.max_res_url || '',
         cardUrl: `https://chub.ai/characters/${n.fullPath}`,
         creator: (n.fullPath || '').split('/')[0],
@@ -620,6 +635,10 @@ const characterTavern = {
         key: h.path,
         name: h.name,
         tagline: clean(h.tagline),
+        // What the site prints under the card on its own page - this platform's
+        // name for the creator's notes. The search index carries it, so it
+        // arrives with the tile rather than costing a second request.
+        notes: clean(h.pageDescription),
         avatarUrl: this.thumbUrlFor(h.path),
         cardUrl: `https://character-tavern.com/character/${h.path}`,
         creator: h.author,
@@ -945,6 +964,11 @@ const janitorai = {
     const total = res.total ?? res.filtered_total ?? nodes.length;
 
     return {
+      // No `notes` here, and none is missing: the other two sites keep the
+      // author's message in a field beside the blurb, where JanitorAI has only
+      // the one field and it is already the tagline below. Copying it into
+      // `notes` as well would put a badge on every tile promising more and then
+      // showing the same paragraph back.
       items: nodes.map(n => ({
         key: n.id,
         name: clean(n.name) || 'Untitled',

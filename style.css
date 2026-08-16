@@ -282,8 +282,9 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
 
 /* ---------------- scrollbars ---------------- */
 
-/* Two places in the tool scroll their own contents - a list of pasted URLs in
-   the box above, and a card blurb too long for its tile - and they are styled
+/* Three places in the tool scroll their own contents - a list of pasted URLs in
+   the box above, a card blurb too long for its tile, and a panel of creator's
+   notes - and they are styled
    together so the tool has one scrollbar rather than one per feature. The
    default is a wide light-grey bar that sits on a dark panel looking like
    something spilled on it.
@@ -291,21 +292,26 @@ input[type="file"] { color: var(--text-dim); font-size: 0.85rem; }
    ::-webkit- rules and ignore the standard ones. Both are needed, and neither
    is a fallback for the other. */
 textarea,
-.bulk-card-tag {
+.bulk-card-tag,
+.notes-body {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
 textarea::-webkit-scrollbar,
-.bulk-card-tag::-webkit-scrollbar { width: 6px; }
+.bulk-card-tag::-webkit-scrollbar,
+.notes-body::-webkit-scrollbar { width: 6px; }
 
 textarea::-webkit-scrollbar-track,
-.bulk-card-tag::-webkit-scrollbar-track { background: transparent; }
+.bulk-card-tag::-webkit-scrollbar-track,
+.notes-body::-webkit-scrollbar-track { background: transparent; }
 
 textarea::-webkit-scrollbar-thumb,
-.bulk-card-tag::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+.bulk-card-tag::-webkit-scrollbar-thumb,
+.notes-body::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 
 textarea::-webkit-scrollbar-thumb:hover,
-.bulk-card-tag::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+.bulk-card-tag::-webkit-scrollbar-thumb:hover,
+.notes-body::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
 
 .btn {
   padding: 10px 16px;
@@ -537,6 +543,121 @@ textarea::-webkit-scrollbar-thumb:hover,
   width: 22px; height: 22px;
   accent-color: var(--accent-strong);
   cursor: pointer; z-index: 2;
+}
+
+/* The way into the creator's notes, opposite the tick and the same size as it.
+   Over the picture rather than in the body of the tile on purpose: the body is
+   what a row's height is measured from, so a badge down there would push every
+   card in the row taller for the sake of one line - and the two corners of the
+   avatar are the only places on a tile that are always in the same spot
+   whatever length the name and the blurb run to.
+     Dark disc and a ring, for the same reason the tick has one: half of these
+   avatars are pale, and an unbacked glyph disappears into them. */
+.bulk-card-info {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  padding: 0;
+  border: 1px solid rgba(230, 233, 240, 0.35);
+  border-radius: 50%;
+  background: rgba(8, 9, 12, 0.72);
+  color: var(--text);
+  font-family: Georgia, "Times New Roman", serif;   /* a serif i reads as an i */
+  font-size: 0.82rem; font-weight: 700; line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.bulk-card-info:hover,
+.bulk-card-info[aria-expanded="true"] {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #fff;
+}
+.bulk-card-info:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------------- creator notes ---------------- */
+
+/* The panel covers the window and lets everything through: in popover form the
+   grid underneath stays live, and a click on it is one of the ways the panel
+   gets put away. The two children take their own clicks back. */
+.notes {
+  position: fixed; inset: 0; z-index: 150;
+  pointer-events: none;
+}
+
+.notes-pop {
+  position: absolute;
+  pointer-events: auto;
+  padding: 14px 34px 14px 16px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(8, 9, 12, 0.55);
+}
+
+.notes-title { margin: 0; font-size: 0.9rem; font-weight: 600; }
+.notes-by { margin: 1px 0 0; font-size: 0.76rem; color: var(--text-faint); }
+
+/* The author's own line breaks are kept - a notes field is routinely a list of
+   greetings or a changelog, and run together as one paragraph it stops being
+   either. `anywhere` because the text comes from a box on another site and
+   regularly contains a URL longer than this panel is wide. */
+.notes-body {
+  margin-top: 9px;
+  font-size: 0.82rem; line-height: 1.5; color: var(--text-dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-y: auto;
+  /* Scrolling the notes must not carry on into the page behind them once they
+     run out - the opposite of the rule for a blurb inside a tile, which chains
+     on purpose because the tile is part of the page being scrolled. */
+  overscroll-behavior: contain;
+}
+
+/* ---- pinned beside a tile (a pointer, a wide window) ---- */
+
+/* Narrow on purpose. It stands beside a tile in a grid of them, so a panel much
+   wider would cover the neighbours it is meant to be compared against. */
+.notes-anchored .notes-pop {
+  width: min(330px, calc(100vw - 24px));
+  animation: notes-in 0.12s ease-out;
+}
+.notes-anchored .notes-body { max-height: min(46vh, 340px); }
+.notes-anchored .notes-scrim { display: none; }
+
+/* ---- a sheet across the bottom (touch, or a narrow window) ---- */
+
+/* Bottom rather than centre: it is the half of a phone a thumb reaches, and it
+   leaves the top of the screen showing the grid the notes belong to. */
+.notes-sheet .notes-pop {
+  left: 0; right: 0; bottom: 0; top: auto;
+  width: auto;
+  max-height: 74dvh;
+  display: flex; flex-direction: column;
+  padding: 16px 44px 18px 16px;
+  border-radius: var(--radius) var(--radius) 0 0;
+  border-bottom: none;
+  animation: notes-up 0.16s ease-out;
+}
+/* The heading stays put and the notes scroll under it, so a long changelog
+   never leaves someone wondering which card they opened. */
+.notes-sheet .notes-body { flex: 1 1 auto; min-height: 0; font-size: 0.86rem; }
+
+.notes-sheet .notes-scrim {
+  position: absolute; inset: 0;
+  pointer-events: auto;
+  background: rgba(8, 9, 12, 0.6);
+  backdrop-filter: blur(2px);
+  animation: notes-in 0.16s ease-out;
+}
+
+@keyframes notes-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes notes-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .notes-anchored .notes-pop,
+  .notes-sheet .notes-pop,
+  .notes-sheet .notes-scrim { animation: none; }
 }
 
 /* ---------------- progress ---------------- */
@@ -1021,6 +1142,16 @@ textarea::-webkit-scrollbar-thumb:hover,
     box-shadow: 0 0 0 2px rgba(8, 9, 12, 0.55);
   }
 
+  /* Grown with the tick opposite it, and for the same reason. It is also the
+     one target on a tile that must not be hit by accident - everywhere else on
+     the card ticks it, so a badge too small to aim at costs a selection rather
+     than nothing. */
+  .bulk-card-info {
+    width: 28px; height: 28px; top: 7px; right: 7px;
+    font-size: 0.9rem;
+    box-shadow: 0 0 0 2px rgba(8, 9, 12, 0.55);
+  }
+
   /* ---------------- progress ---------------- */
 
   /* Pinned to the bottom of the screen for as long as its real position is
@@ -1161,6 +1292,22 @@ textarea::-webkit-scrollbar-thumb:hover,
 @media (hover: none) {
   .bulk-card:hover { transform: none; border-color: var(--border); }
   .bulk-card.selected:hover { border-color: var(--accent); }
+
+  /* Same trap, one level down: the notes badge lights up on hover, and the tap
+     that opened a sheet would leave it lit long after the sheet was closed. The
+     rule underneath is the one that means something here - it is lit while its
+     panel is open and dark the rest of the time, which is a fact rather than a
+     leftover, so it is restated after the hover is taken away. */
+  .bulk-card-info:hover {
+    background: rgba(8, 9, 12, 0.72);
+    border-color: rgba(230, 233, 240, 0.35);
+    color: var(--text);
+  }
+  .bulk-card-info[aria-expanded="true"] {
+    background: var(--accent-strong);
+    border-color: var(--accent-strong);
+    color: #fff;
+  }
 
   .btn:hover:not(:disabled) { background: var(--bg-input); border-color: var(--border-strong); }
   .btn-primary:hover:not(:disabled) { background: var(--accent-strong); border-color: var(--accent-strong); }

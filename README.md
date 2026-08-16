@@ -92,6 +92,15 @@ You get a plain grid — avatar, name, tagline, creator — with checkboxes. Tic
 **Convert selected**. Star counts, downloads, ratings and comments are never read and never reach the
 output.
 
+Tiles whose author left notes carry a small **ⓘ** in the corner of the picture. Hover it on a
+computer or tap it on a phone and the creator's notes open beside the tile — a popover next to the
+card where there is a mouse, a sheet across the bottom of the screen where there is not. It is the
+paragraph the tagline is the first line of: what the card is for, which model it was written
+against, what the alternate greetings are. chub and Character Tavern both send it with the search
+results, so reading it costs no extra request and never leaves the grid. Tiles without one show no
+badge, which includes every JanitorAI card — that site has no separate notes field, and what it does
+have is already the tagline on the tile.
+
 **Prev** and **Next** page through four full rows at a time, whatever that works out to at your
 window size. Each site hands out its results in its own page size — 24 on chub, 34 on JanitorAI —
 so those are buffered behind the grid and dealt out to fit it; one press of **Next** may cost a
@@ -274,7 +283,9 @@ of `proxy.js`). Real use is a few requests per library page.
 **Creator notes are dropped entirely.** They are a message from the card's author to whoever
 downloads it — changelogs, credits, "use this preset", links — not anything the character *is*.
 Wherever they were put they were wrong: in the description they became part of the persona, in the
-lorebook they became world facts.
+lorebook they became world facts. They are worth *reading* before you pick a card, which is what the
+**ⓘ** on a tile is for; that is where they stay, and nothing carries them into the converted
+character.
 
 **About lore mode.** A real lorebook can run to 150+ entries and hundreds of KB. In always-on mode all
 of that is prepended to every prompt, which is ruinous for context and cost. So when most entries

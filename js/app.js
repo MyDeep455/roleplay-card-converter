@@ -1233,9 +1233,270 @@ function bulkPageCount(per, page) {
   return Math.max(page, Math.ceil(bulkTotalCards() / per) || 1);
 }
 
+/* =========================================================================
+ * CREATOR NOTES
+ * -------------------------------------------------------------------------
+ * The tile shows the tagline in full, which is the one line a site puts under
+ * a card in its own grid. The notes are the paragraph behind it - what the
+ * author wanted whoever downloads this to know - and on chub and Character
+ * Tavern they arrive with the listing, so the only thing between them and the
+ * screen is somewhere to put them.
+ *
+ * Not the tile itself: a row is as tall as its tallest card, so a paragraph
+ * added to one tile is empty space added to the five beside it. It is a panel
+ * over the grid instead, in the two shapes the two kinds of screen want -
+ * pinned beside the tile where there is a pointer to hover with, and a sheet
+ * across the bottom of the window where there is not.
+ * ========================================================================= */
+
+// How long the pointer has to settle on the badge before the panel opens, and
+// how long it has to be gone before it closes. Both are deliberate. A page is
+// twenty-four tiles, and a panel that opened the instant a cursor crossed one
+// would flash open and shut the whole way down the grid; the closing delay is
+// the longer of the two because it covers the travel from badge to panel, and
+// notes long enough to scroll are no use if they vanish on the way there.
+const NOTES_OPEN_MS = 200;
+const NOTES_CLOSE_MS = 260;
+
+const NOTES_GAP = 10;    // from the tile
+const NOTES_EDGE = 12;   // from the edge of the window
+
+const notesClamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
+
+const notesPop = {
+  card: null,        // the tile the open panel belongs to
+  badge: null,       // the button on it, which carries the open/closed state
+  sheet: false,      // sheet across the bottom rather than pinned beside a tile
+  pinned: false,     // opened by a click, so a wandering pointer cannot close it
+  openTimer: 0,
+  closeTimer: 0,
+};
+
+// A sheet wherever there is no pointer to hover with, and on any window narrow
+// enough that a panel beside a tile would be most of it. Asked at each open
+// rather than once at startup: a laptop with a touchscreen answers this
+// differently from one minute to the next, and a phone turned on its side
+// crosses the width test on its own.
+const notesWantSheet = () =>
+  matchMedia('(hover: none), (pointer: coarse), (max-width: 720px)').matches;
+
+/**
+ * The notes worth opening for this card, or '' when there are none.
+ *
+ * Both sites that have the field let it be filled with anything, and what they
+ * most often get is the tagline over again. A badge on those tiles would
+ * promise more and then show the line already under the name, so what counts as
+ * notes here is what the tile is not showing already.
+ */
+const notesFlat = s => (s || '').replace(/\s+/g, ' ').trim();
+
+function cardNotes(item) {
+  const notes = notesFlat(item.notes);
+  if (!notes) return '';
+  return notesFlat(item.tagline).includes(notes) ? '' : item.notes.trim();
+}
+
+function openNotes(card, badge, item, text, { pinned = false } = {}) {
+  clearTimeout(notesPop.openTimer);
+  clearTimeout(notesPop.closeTimer);
+
+  // Moving from one tile to another reuses the one panel, so the badge being
+  // left has to be told it is no longer the open one.
+  if (notesPop.badge && notesPop.badge !== badge) {
+    notesPop.badge.setAttribute('aria-expanded', 'false');
+  }
+
+  const wrap = $('card-notes');
+  const pop = $('card-notes-pop');
+  const by = $('card-notes-by');
+  const body = $('card-notes-body');
+
+  $('card-notes-title').textContent = item.name || 'Creator notes';
+  by.textContent = item.creator ? `by ${item.creator}` : '';
+  by.classList.toggle('hidden', !item.creator);
+  // textContent rather than markup: this is text somebody typed into a box on
+  // another site, and the panel renders it as the text it is. The line breaks
+  // in it are kept by the stylesheet.
+  body.textContent = text;
+  body.scrollTop = 0;
+
+  notesPop.card = card;
+  notesPop.badge = badge;
+  notesPop.pinned = pinned;
+  notesPop.sheet = notesWantSheet();
+
+  wrap.classList.toggle('notes-sheet', notesPop.sheet);
+  wrap.classList.toggle('notes-anchored', !notesPop.sheet);
+  wrap.classList.remove('hidden');
+  badge.setAttribute('aria-expanded', 'true');
+
+  if (notesPop.sheet) {
+    // A sheet covers the page and takes every tap that is not on the grid, so
+    // it is a modal dialog and says so. The popover is not one - the grid
+    // behind it stays live and a click on it is how it gets put away.
+    pop.setAttribute('aria-modal', 'true');
+    pop.style.left = '';
+    pop.style.top = '';
+    $('card-notes-close').focus({ preventScroll: true });
+  } else {
+    pop.removeAttribute('aria-modal');
+    placeNotes();
+  }
+}
+
+// Beside the tile, on whichever side has room. Beside rather than over, so the
+// picture and the name the notes belong to are still there to read them
+// against; centred on the tile only when neither side will take it.
+function placeNotes() {
+  const pop = $('card-notes-pop');
+  const r = notesPop.card.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  const vw = innerWidth, vh = innerHeight;
+
+  let left = r.right + NOTES_GAP;
+  if (left + w > vw - NOTES_EDGE) left = r.left - NOTES_GAP - w;
+  if (left < NOTES_EDGE) left = r.left + r.width / 2 - w / 2;
+
+  pop.style.left = `${Math.round(notesClamp(left, NOTES_EDGE, Math.max(NOTES_EDGE, vw - w - NOTES_EDGE)))}px`;
+  pop.style.top = `${Math.round(notesClamp(r.top, NOTES_EDGE, Math.max(NOTES_EDGE, vh - h - NOTES_EDGE)))}px`;
+}
+
+// `restoreFocus` is for the ways out the keyboard takes - Escape, the close
+// button. A click elsewhere has already decided where focus belongs, and
+// dragging it back to a badge would undo that.
+function closeNotes({ restoreFocus = false } = {}) {
+  clearTimeout(notesPop.openTimer);
+  clearTimeout(notesPop.closeTimer);
+
+  const badge = notesPop.badge;
+  $('card-notes').classList.add('hidden');
+
+  if (badge) {
+    badge.setAttribute('aria-expanded', 'false');
+    if (restoreFocus && badge.isConnected) badge.focus();
+  }
+  notesPop.card = null;
+  notesPop.badge = null;
+  notesPop.pinned = false;
+}
+
+function scheduleNotesClose() {
+  if (notesPop.pinned) return;
+  clearTimeout(notesPop.closeTimer);
+  notesPop.closeTimer = setTimeout(() => closeNotes(), NOTES_CLOSE_MS);
+}
+
+// Did this focus come from the keyboard? A browser too old to know throws on
+// the selector rather than answering, and the honest answer there is no: the
+// badge is still a button, so Enter and Space open it either way.
+function keyboardFocus(el) {
+  try { return el.matches(':focus-visible'); } catch { return false; }
+}
+
+// Event targets are not all elements - a scroll can be reported against the
+// document itself - and one thrown TypeError in a listener would leave a panel
+// that no longer closes.
+const within = (target, selector) => !!target?.closest?.(selector);
+
+function attachNotes(badge, card, item, text) {
+  const isOpen = () => notesPop.badge === badge;
+
+  badge.addEventListener('click', e => {
+    // The whole tile is a checkbox. This button is the one part of it that is
+    // not, so the click stops here instead of ticking the card behind it.
+    e.stopPropagation();
+    if (isOpen()) closeNotes();
+    else openNotes(card, badge, item, text, { pinned: true });
+  });
+
+  // Hovering is an offer on top of that button, never the only way in - which
+  // is why everything below is skipped for anything that is not a mouse. A
+  // touch screen has no way to stop hovering: the tap that opened a panel would
+  // leave a hover behind on the badge it landed on.
+  badge.addEventListener('pointerenter', e => {
+    if (e.pointerType !== 'mouse' || isOpen()) return;
+    clearTimeout(notesPop.closeTimer);
+    clearTimeout(notesPop.openTimer);
+    notesPop.openTimer = setTimeout(() => openNotes(card, badge, item, text), NOTES_OPEN_MS);
+  });
+
+  badge.addEventListener('pointerleave', e => {
+    if (e.pointerType !== 'mouse') return;
+    clearTimeout(notesPop.openTimer);
+    if (isOpen()) scheduleNotesClose();
+  });
+
+  // Tab reaches the badge, and a keyboard has no hover to offer, so arriving is
+  // the whole gesture. Only for a focus the browser itself judges to be a
+  // keyboard's - a click focuses the button too, and the handler above is
+  // already deciding what that means.
+  badge.addEventListener('focus', () => {
+    if (!isOpen() && keyboardFocus(badge)) openNotes(card, badge, item, text, { pinned: true });
+  });
+}
+
+/* ---------------- the panel's own wiring, done once ---------------- */
+
+// The pointer moving off a badge and onto the panel is arriving, not leaving.
+$('card-notes-pop').addEventListener('pointerenter', () => clearTimeout(notesPop.closeTimer));
+$('card-notes-pop').addEventListener('pointerleave', e => {
+  if (e.pointerType === 'mouse') scheduleNotesClose();
+});
+
+$('card-notes-close').addEventListener('click', () => closeNotes({ restoreFocus: true }));
+$('card-notes-scrim').addEventListener('click', () => closeNotes());
+
+// On pointerdown rather than click, so the panel is out of the way before
+// whatever was pressed underneath it acts.
+document.addEventListener('pointerdown', e => {
+  if (!notesPop.badge) return;
+  if (within(e.target, '#card-notes-pop') || within(e.target, '.bulk-card-info')) return;
+  closeNotes();
+});
+
+// The same rule for the keyboard: focus landing anywhere but the badge and its
+// panel means this is over.
+document.addEventListener('focusin', e => {
+  if (!notesPop.badge) return;
+  if (e.target === notesPop.badge || within(e.target, '#card-notes-pop')) return;
+  closeNotes();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && notesPop.badge) closeNotes({ restoreFocus: true });
+});
+
+// A pinned panel travels with its tile rather than hanging in the air where the
+// tile used to be, and gives up once the tile has left the window entirely.
+// Capture phase, because a scroll inside the notes themselves does not bubble -
+// and it is skipped, since scrolling the text moves nothing on the page.
+let notesFrame = 0;
+addEventListener('scroll', e => {
+  if (!notesPop.card || notesPop.sheet || notesFrame) return;
+  if (within(e.target, '#card-notes-pop')) return;
+
+  notesFrame = requestAnimationFrame(() => {
+    notesFrame = 0;
+    if (!notesPop.card || notesPop.sheet) return;
+    const r = notesPop.card.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > innerHeight) closeNotes();
+    else placeNotes();
+  });
+}, true);
+
+// A resize re-cuts the whole grid a moment later anyway, and can turn a
+// popover's screen into a sheet's. Nothing is worth re-anchoring through that.
+addEventListener('resize', () => {
+  if (notesPop.card && !notesPop.sheet) closeNotes();
+});
+
 function renderBulkGrid() {
   const grid = $('bulk-grid');
   const b = state.bulk;
+
+  // Every tile is about to be replaced, including whichever one an open panel
+  // is pinned to.
+  closeNotes();
 
   // Pasted links are a list, not a library: there is no page after them, so all
   // of them are shown - windowing that would hide links someone chose by hand.
@@ -1273,8 +1534,19 @@ function renderBulkGrid() {
               onerror="this.parentNode.innerHTML='<div class=\\'noimg\\'>no image</div>'" />`
       : `<div class="noimg">no image</div>`;
 
+    // Only on the tiles that have something to show. A badge on every card,
+    // half of them opening a repeat of the tagline, would teach people to stop
+    // pressing it - so the ones that appear are the ones worth a look.
+    const notes = cardNotes(item);
+    const badge = notes
+      ? `<button type="button" class="bulk-card-info" title="Creator notes"
+                 aria-label="Creator notes for ${escapeAttr(item.name)}"
+                 aria-haspopup="dialog" aria-expanded="false">i</button>`
+      : '';
+
     card.innerHTML = `
       <input type="checkbox" class="bulk-check" ${state.bulk.selected.has(item.key) ? 'checked' : ''} />
+      ${badge}
       <figure>${img}</figure>
       <div class="bulk-card-body">
         <p class="bulk-card-name" title="${escapeAttr(item.name)}">${escapeHtml(item.name)}</p>
@@ -1310,6 +1582,9 @@ function renderBulkGrid() {
       toggle();
     });
     card.querySelector('.bulk-check').addEventListener('change', toggle);
+
+    const info = card.querySelector('.bulk-card-info');
+    if (info) attachNotes(info, card, item, notes);
 
     grid.appendChild(card);
   });

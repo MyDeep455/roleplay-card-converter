@@ -245,6 +245,36 @@
      mid-sentence. -->
 <div id="success-toast" class="toast" role="status" aria-live="polite"></div>
 
+<!-- ============================ CREATOR NOTES ============================ -->
+<!-- The author's notes for one tile, read without leaving the grid. Empty here
+     for the same reason the tour is: every word in it belongs to whichever card
+     was asked about, and app.js writes it on open.
+
+     It sits at the end of the body rather than inside the tile it describes,
+     because a tile clips its own contents - `overflow: hidden` is what keeps
+     the avatar inside the rounded corners - so a panel parented to one would be
+     cut off at its edge. The wrapper covers the viewport but lets every click
+     through; only the two children below take one.
+
+     One panel serves both shapes. On a mouse it is a popover pinned beside the
+     tile; on a touch screen it is a sheet across the bottom of the window,
+     which is the only place a panel of text can be both readable and in reach
+     of a thumb. app.js picks between them per open and says which by class, so
+     the choice is made once rather than in a media query the positioning code
+     cannot see. -->
+<div id="card-notes" class="notes hidden">
+  <!-- Invisible and inert beside a popover; on a sheet it is the dimmed page
+       behind it and the tap that closes it. -->
+  <div id="card-notes-scrim" class="notes-scrim"></div>
+
+  <div id="card-notes-pop" class="notes-pop" role="dialog" aria-labelledby="card-notes-title">
+    <button id="card-notes-close" class="notice-close" aria-label="Close">&times;</button>
+    <p id="card-notes-title" class="notes-title"></p>
+    <p id="card-notes-by" class="notes-by"></p>
+    <div id="card-notes-body" class="notes-body"></div>
+  </div>
+</div>
+
 <!-- ============================ TOUR ============================ -->
 <!-- The first-visit walkthrough. Empty on purpose - every word in it comes
      from the step list in js/tour.js, and the highlight is positioned from
