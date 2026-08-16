@@ -670,8 +670,14 @@ textarea::-webkit-scrollbar-thumb:hover,
      the scrolling element rather than to the panel, because a scroll container
      lays its content out inside its padding and puts the bar outside it - so
      this is the one place that can separate the two without also moving the
-     bar off the edge. */
-  padding-right: 10px;
+     bar off the edge.
+       One figure for both shapes of panel. Ten was tried for the popover, on
+     the grounds that its text is smaller, and it reads tighter rather than
+     equivalent: a phone draws an overlay bar that hangs over the gap, where a
+     desktop draws a solid one with arrow buttons standing in it, so the same
+     measurement gives the wider-looking result to the panel that needs it
+     less. Fourteen is the phone's, which is the one that looks right. */
+  padding-right: 14px;
 }
 
 /* Chips rather than a comma-separated line: a tag list is a set of separate
@@ -680,7 +686,7 @@ textarea::-webkit-scrollbar-thumb:hover,
    gets to cap, since a card really can carry twenty. */
 .notes-tags {
   display: flex; flex-wrap: wrap; gap: 5px;
-  margin: 10px 0 0; padding: 0 10px 0 0;   /* the same gap before the bar */
+  margin: 10px 0 0; padding: 0 14px 0 0;   /* the same gap before the bar */
   list-style: none;
   /* Fifty-one tags is a real card, not a hypothetical one, and left to itself
      that list pushes the lorebook line off the panel. A few rows, then it
@@ -708,9 +714,13 @@ textarea::-webkit-scrollbar-thumb:hover,
 /* ---- pinned beside a tile (a pointer, a wide window) ---- */
 
 /* Narrow on purpose. It stands beside a tile in a grid of them, so a panel much
-   wider would cover the neighbours it is meant to be compared against. */
+   wider would cover the neighbours it is meant to be compared against.
+     Twenty-two pixels wider than it first was, which is what the scrollbar and
+   the gap in front of it take out of the line - without that the change that
+   moved the bar to the edge would have been paid for by the text it was meant
+   to give room to. */
 .notes-anchored .notes-pop {
-  width: min(330px, calc(100vw - 24px));
+  width: min(352px, calc(100vw - 24px));
   animation: notes-in 0.12s ease-out;
 }
 .notes-anchored .notes-scroll { max-height: min(60vh, 430px); }
@@ -735,11 +745,10 @@ textarea::-webkit-scrollbar-thumb:hover,
 /* The heading stays put and everything else scrolls under it, so a long
    changelog never leaves someone wondering which card they opened. */
 .notes-sheet .notes-scroll { flex: 1 1 auto; min-height: 0; }
-/* A wider gap than the popover's. The bar is the same six pixels either way,
-   but a thumb rests on this one and the text it is nearly touching is a third
-   larger, so the same clearance reads as tighter here. */
-.notes-sheet .notes-body { max-height: 42dvh; font-size: 0.86rem; padding-right: 14px; }
-.notes-sheet .notes-tags { max-height: 8em; padding-right: 14px; }
+/* Height only - the clearance before the scrollbar is the shared one above,
+   which was set from how this sheet looks. */
+.notes-sheet .notes-body { max-height: 42dvh; font-size: 0.86rem; }
+.notes-sheet .notes-tags { max-height: 8em; }
 /* The close button is a corner of the sheet rather than a corner of a small
    popover, so the heading has further to stay clear of. */
 .notes-sheet .notes-title,
