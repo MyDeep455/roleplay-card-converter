@@ -1254,6 +1254,11 @@ function fillNotesGreetings(greetings) {
  * A dead link removes its own figure. Authors embed art from wherever they
  * like and some of those hosts have since gone, and a broken-image icon in a
  * grid of pictures reads as this tool having failed to load something.
+ *
+ * Each one opens full size in the same viewer the tiles use. The panel caps
+ * them at 260px so a card with a dozen is still a panel rather than a scroll,
+ * which makes these thumbnails too - and the file behind one is already the
+ * original, so opening it costs nothing beyond what has been downloaded.
  */
 function fillNotesGallery(gallery) {
   const wrap = $('card-notes-gallery');
@@ -1266,6 +1271,19 @@ function fillNotesGallery(gallery) {
     img.decoding = 'async';
     img.referrerPolicy = 'no-referrer';
     img.alt = '';
+
+    // A picture that opens is a control, whatever element it is made of, so it
+    // is reachable and operable from a keyboard like the rest of them.
+    img.tabIndex = 0;
+    img.setAttribute('role', 'button');
+    img.setAttribute('aria-label', 'View this image full size');
+    const open = () => openViewer({ full: url, opener: img });
+    img.addEventListener('click', open);
+    img.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();      // Space would scroll the panel behind it
+      open();
+    });
     // A picture is the one thing in this panel with no height until it arrives,
     // and a popover is placed from the height it had when it opened. Both ways
     // out of that - the picture landing, or the link turning out to be dead -
@@ -1331,7 +1349,9 @@ function closeNotes({ restoreFocus = false } = {}) {
 }
 
 function scheduleNotesClose() {
-  if (notesPop.pinned) return;
+  // A pointer that left the panel because it went to the full-size picture
+  // opened from the panel has not left the panel.
+  if (notesPop.pinned || viewerOpen()) return;
   clearTimeout(notesPop.closeTimer);
   notesPop.closeTimer = setTimeout(() => closeNotes(), NOTES_CLOSE_MS);
 }
@@ -1398,8 +1418,13 @@ $('card-notes-scrim').addEventListener('click', () => closeNotes());
 
 // On pointerdown rather than click, so the panel is out of the way before
 // whatever was pressed underneath it acts.
+//
+// The full-size viewer is the exception to all three rules below, and for the
+// same reason each time: it is opened from the gallery inside this panel and
+// sits on top of it, so a press on it, focus moving into it, or an Escape meant
+// for it must not take away the panel it will be dropped back onto.
 document.addEventListener('pointerdown', e => {
-  if (!notesPop.badge) return;
+  if (!notesPop.badge || viewerOpen()) return;
   if (within(e.target, '#card-notes-pop') || within(e.target, '.bulk-card-info')) return;
   closeNotes();
 });
@@ -1407,13 +1432,13 @@ document.addEventListener('pointerdown', e => {
 // The same rule for the keyboard: focus landing anywhere but the badge and its
 // panel means this is over.
 document.addEventListener('focusin', e => {
-  if (!notesPop.badge) return;
+  if (!notesPop.badge || viewerOpen()) return;
   if (e.target === notesPop.badge || within(e.target, '#card-notes-pop')) return;
   closeNotes();
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && notesPop.badge) closeNotes({ restoreFocus: true });
+  if (e.key === 'Escape' && notesPop.badge && !viewerOpen()) closeNotes({ restoreFocus: true });
 });
 
 // A pinned panel travels with its tile rather than hanging in the air where the
@@ -1438,6 +1463,163 @@ addEventListener('scroll', e => {
 // popover's screen into a sheet's. Nothing is worth re-anchoring through that.
 addEventListener('resize', () => {
   if (notesPop.card && !notesPop.sheet) closeNotes();
+});
+
+/* =========================================================================
+ * FULL-SIZE IMAGE
+ * -------------------------------------------------------------------------
+ * A tile is 178px wide and the file behind it is sized to match: Character
+ * Tavern's grid URL asks the CDN for 400px at quality 80, and chub publishes a
+ * small avatar beside the original. Both are the right thing to draw two dozen
+ * of at once and the wrong thing to look at when the question is what a card
+ * actually looks like - which is what the corner button on each tile is for.
+ *
+ * The full file is a megabyte or more, so it is fetched per open and dropped on
+ * close: nothing about this costs anything until somebody asks to see one.
+ *
+ * Two phases, because that download is long enough to notice. The tile's own
+ * thumbnail is already decoded in the browser's cache, so it goes up blurred on
+ * the frame the button was pressed and the original replaces it when it lands.
+ * The alternative - an empty dimmed screen for a second and a half - is the
+ * same wait with nothing to look at, and reads as a control that did not work.
+ *
+ * Blurred rather than merely upscaled because the stand-in is not always the
+ * same picture: Character Tavern's thumbnail is an honest 400px resize, but
+ * chub's is a 200px square crop of a portrait image, so the shape settles when
+ * the original arrives. Out of focus that reads as the picture resolving; sharp
+ * it would read as the popup jumping.
+ * ========================================================================= */
+
+// Four corner brackets. Drawn rather than typed: the obvious character for this
+// (U+26F6) is missing from most of the fonts this page will actually be shown
+// in, and a control whose glyph might come out as a box cannot be a control.
+const ZOOM_ICON =
+  '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
+  '<path d="M6 1.6H1.6V6M10 1.6h4.4V6M6 14.4H1.6V10M10 14.4h4.4V10" fill="none" ' +
+  'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+const viewerState = {
+  opener: null,   // the control it was opened from, for where focus goes back to
+  run: 0,         // bumped per open and per close, so a full-size file that
+                  // lands after the viewer moved on cannot paint over whatever
+                  // is on screen by then
+};
+
+function viewerOpen() { return !$('image-viewer').classList.contains('hidden'); }
+
+/**
+ * Show one picture over a dimmed page.
+ *
+ * `full` is the file worth looking at and `thumb` the copy the page already
+ * has; passing the same URL for both - or leaving `thumb` out - is the case
+ * where the site only ever served one size, and skips straight to it.
+ */
+function openViewer({ full, thumb = '', name = '', opener = null }) {
+  const src = full || thumb;
+  if (!src) return;
+
+  const img = $('viewer-img');
+  const wait = $('viewer-wait');
+  const run = ++viewerState.run;
+  viewerState.opener = opener;
+
+  // Nothing to stand in with when the two are the same file - the gallery in
+  // the details panel, and JanitorAI's tiles. That URL is one the page has
+  // already drawn with, so it is normally cached and arrives on the same frame.
+  const preview = !!thumb && thumb !== src;
+
+  img.classList.toggle('is-thumb', preview);
+  img.src = preview ? thumb : src;
+
+  wait.textContent = 'Loading full image…';
+  // The note is up whenever something is still on its way. With a thumbnail
+  // underneath that is until the original lands; without one - where the frame
+  // is empty rather than soft - it is until this picture itself does, which
+  // matters more, because an empty dimmed screen with nothing on it is what a
+  // control that did not work looks like.
+  wait.classList.toggle('hidden', !preview && img.complete);
+
+  $('viewer-name').textContent = name;
+  $('viewer-original').href = src;
+
+  $('image-viewer').classList.remove('hidden');
+  $('viewer-close').focus({ preventScroll: true });
+
+  if (!preview) {
+    img.addEventListener('load', () => {
+      if (run === viewerState.run) wait.classList.add('hidden');
+    }, { once: true });
+    // Nothing to fall back to here, so the frame would stay empty. Say why.
+    img.addEventListener('error', () => {
+      if (run !== viewerState.run) return;
+      wait.textContent = 'That image could not be loaded.';
+      wait.classList.remove('hidden');
+    }, { once: true });
+    return;
+  }
+
+  // Loaded off-DOM and swapped in once it is decoded. Assigning the new URL to
+  // the visible element instead would clear it the moment it was set, putting
+  // an empty frame where the thumbnail had been for the whole download.
+  const original = new Image();
+  original.referrerPolicy = 'no-referrer';
+  original.addEventListener('load', () => {
+    if (run !== viewerState.run) return;
+    img.classList.remove('is-thumb');
+    img.src = src;
+    wait.classList.add('hidden');
+  }, { once: true });
+  // A dead link leaves the thumbnail up rather than emptying the frame. It is
+  // the same picture at a lower resolution, which is the better of the two
+  // answers to "the original is no longer where the listing says it is".
+  original.addEventListener('error', () => {
+    if (run !== viewerState.run) return;
+    wait.classList.add('hidden');
+  }, { once: true });
+  original.src = src;
+}
+
+function closeViewer() {
+  if (!viewerOpen()) return;
+
+  // Focus goes back BEFORE the overlay is hidden, and the order is not a
+  // preference. Hiding the element that currently holds focus - the close
+  // button, every time this is reached by keyboard - makes the browser reset
+  // focus to the body, and it does that at the next style flush: after any
+  // focus() call made in the same breath, which it then quietly undoes. Moving
+  // focus first means there is nothing for it to reset.
+  const opener = viewerState.opener;
+  viewerState.opener = null;
+  if (opener?.isConnected) opener.focus({ preventScroll: true });
+
+  viewerState.run++;                       // whatever is still downloading is no longer wanted
+  $('image-viewer').classList.add('hidden');
+  // Dropped rather than left behind: a page of tiles opened one after another
+  // would otherwise hold every full-size picture it had shown for the rest of
+  // the session.
+  $('viewer-img').removeAttribute('src');
+  $('viewer-img').classList.remove('is-thumb');
+  $('viewer-wait').classList.add('hidden');
+}
+
+$('viewer-close').addEventListener('click', closeViewer);
+
+// Everywhere else is a way out - the dimmed page, and the margins either side
+// of the picture. Only the picture itself and the link under it keep a click,
+// so that reaching for "Open original" cannot close the thing it belongs to.
+$('image-viewer').addEventListener('click', e => {
+  if (e.target.closest('#viewer-img, #viewer-original, #viewer-close')) return;
+  closeViewer();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && viewerOpen()) {
+    // Stops here rather than falling through to the notes panel underneath:
+    // one press should put away one thing, and the gallery this was opened
+    // from is inside that panel.
+    e.preventDefault();
+    closeViewer();
+  }
 });
 
 function renderBulkGrid() {
@@ -1482,6 +1664,16 @@ function renderBulkGrid() {
               onerror="this.parentNode.innerHTML='<div class=\\'noimg\\'>no image</div>'" />`
       : `<div class="noimg">no image</div>`;
 
+    // The corner that opens the picture at full size. Inside the figure rather
+    // than beside it, so that the onerror above - which replaces everything in
+    // the figure - takes this away along with the picture it belonged to: a
+    // button offering a closer look at an image that would not load is worse
+    // than no button.
+    const zoom = item.avatarUrl
+      ? `<button type="button" class="bulk-card-zoom" title="View full image"
+                 aria-label="View the full image of ${escapeAttr(item.name)}">${ZOOM_ICON}</button>`
+      : '';
+
     // Only on the tiles that have something to show. Which is most of them on
     // chub and Character Tavern, since both quote a token count for every card
     // - but a JanitorAI grid, whose listing says none of this, stays as bare as
@@ -1496,7 +1688,7 @@ function renderBulkGrid() {
     card.innerHTML = `
       <input type="checkbox" class="bulk-check" ${state.bulk.selected.has(item.key) ? 'checked' : ''} />
       ${badge}
-      <figure>${img}</figure>
+      <figure>${img}${zoom}</figure>
       <div class="bulk-card-body">
         <p class="bulk-card-name" title="${escapeAttr(item.name)}">${escapeHtml(item.name)}</p>
         <p class="bulk-card-tag">${escapeHtml(item.tagline || '')}</p>
@@ -1534,6 +1726,21 @@ function renderBulkGrid() {
 
     const info = card.querySelector('.bulk-card-info');
     if (info) attachNotes(info, card, item, details);
+
+    const zoomBtn = card.querySelector('.bulk-card-zoom');
+    zoomBtn?.addEventListener('click', e => {
+      // The whole tile is a checkbox. This corner of it is not, so the click
+      // stops here instead of ticking the card behind it.
+      e.stopPropagation();
+      openViewer({
+        // Not every site has a second, larger copy - JanitorAI serves one file
+        // - and where there is none the tile's own URL is already the original.
+        full: item.fullAvatarUrl || item.avatarUrl,
+        thumb: item.avatarUrl,
+        name: item.name,
+        opener: zoomBtn,
+      });
+    });
 
     grid.appendChild(card);
   });

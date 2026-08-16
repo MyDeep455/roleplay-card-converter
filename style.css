@@ -501,7 +501,9 @@ textarea::-webkit-scrollbar-thumb:hover,
 .bulk-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
 .bulk-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 
-.bulk-card figure { margin: 0; aspect-ratio: 3 / 4; background: var(--bg-input); overflow: hidden; }
+/* Positioned so the zoom button below can sit in the corner of the picture
+   rather than the corner of the tile, which is a card-body's height lower. */
+.bulk-card figure { position: relative; margin: 0; aspect-ratio: 3 / 4; background: var(--bg-input); overflow: hidden; }
 .bulk-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .bulk-card .noimg { width: 100%; height: 100%; display: grid; place-items: center; color: var(--text-faint); font-size: 0.75rem; }
 
@@ -607,6 +609,33 @@ textarea::-webkit-scrollbar-thumb:hover,
   color: #fff;
 }
 .bulk-card-info:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The same disc in the bottom corner, opening the picture full size. Bottom
+   right rather than bottom left because the left of a tile is where a name
+   starts and where the eye lands, and because the two controls that belong to
+   the picture then run down one edge instead of surrounding it.
+     Deliberately always visible rather than appearing on hover: half the people
+   using this are on a phone, where there is no hover to appear on, and a
+   control that only exists on a mouse is a control most of them never find. */
+.bulk-card-zoom {
+  position: absolute; right: 8px; bottom: 8px; z-index: 2;
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  padding: 0;
+  border: 1px solid rgba(230, 233, 240, 0.35);
+  border-radius: 50%;
+  background: rgba(8, 9, 12, 0.72);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.bulk-card-zoom svg { display: block; width: 12px; height: 12px; }
+.bulk-card-zoom:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #fff;
+}
+.bulk-card-zoom:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------------- creator notes ---------------- */
 
@@ -760,6 +789,9 @@ textarea::-webkit-scrollbar-thumb:hover,
    inside a capped box instead: a tall portrait is held to a readable height and
    a wide banner keeps its whole width, and neither loses anything. */
 .notes-gallery { display: grid; gap: 7px; }
+/* Each one opens full size, the same viewer the tiles use - these are capped at
+   260px here so that a card with a dozen of them is still a panel rather than a
+   scroll, which makes the panel a set of thumbnails too. */
 .notes-gallery img {
   display: block;
   width: 100%;
@@ -768,7 +800,9 @@ textarea::-webkit-scrollbar-thumb:hover,
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  cursor: zoom-in;
 }
+.notes-gallery img:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---- pinned under the column ---- */
 
@@ -1072,6 +1106,116 @@ textarea::-webkit-scrollbar-thumb:hover,
 .modal-small { max-width: 420px; }
 .modal-actions { display: flex; gap: 9px; justify-content: flex-end; margin-top: 20px; }
 
+/* ---------------- full-size image ---------------- */
+
+/* Above the notes panel (150) rather than beside it: the gallery inside that
+   panel is one of the two places a picture is opened from, so this has to be
+   able to cover it. Below the tour (200), which covers everything.
+     Darker than a modal's scrim and with no card behind the picture, because
+   the picture is the content here - anything drawn around it is competition
+   for the thing somebody opened this to look at. */
+.viewer {
+  position: fixed; inset: 0; z-index: 160;
+  display: flex;
+  padding: 22px;
+}
+
+.viewer-scrim {
+  position: absolute; inset: 0;
+  background: rgba(8, 9, 12, 0.88);
+  backdrop-filter: blur(4px);
+}
+
+.viewer-inner {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px;
+}
+
+/* `min-height: 0` is the whole trick. Without it this box is as tall as the
+   picture inside it and `max-height: 100%` on that picture means nothing, so a
+   tall image runs off the top and bottom of the window; with it the stage is
+   whatever height the caption left over, and the picture fits the window in
+   both directions at once with no measuring in JS. */
+.viewer-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+
+#viewer-img {
+  display: block;
+  max-width: 100%; max-height: 100%;
+  width: auto; height: auto;
+  border-radius: var(--radius);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+
+/* The tile's own thumbnail standing in for the full picture while that
+   downloads, at the height the real one is about to take.
+     Out of focus, and that is the point rather than decoration. Character
+   Tavern's thumbnail is the same picture at 400px, so it stands in honestly;
+   chub's is a 200px square CROP of a portrait image, so drawn faithfully it
+   would be both very soft and the wrong shape, and would visibly re-frame when
+   the original arrived. Blurred it reads as what it is - a picture still
+   coming - and the shape settling is part of that rather than a jump.
+     `contain` so that a crop is never also a stretch. */
+#viewer-img.is-thumb {
+  height: 100%; width: auto;
+  object-fit: contain;
+  filter: blur(10px);
+  /* A blur spreads past the edge of the element it belongs to, taking the
+     rounded corner and the shadow with it and leaving the picture bleeding
+     into the dimmed page. Clipping is applied after filtering, so this puts
+     the edge back exactly where the sharp picture's will be. */
+  clip-path: inset(0 round var(--radius));
+}
+
+.viewer-wait {
+  position: absolute; left: 50%; bottom: 12px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 4px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: rgba(8, 9, 12, 0.82);
+  color: var(--text-dim); font-size: 0.78rem;
+  pointer-events: none;
+}
+
+.viewer-caption {
+  flex: 0 0 auto;
+  display: flex; align-items: baseline; justify-content: center;
+  gap: 12px; flex-wrap: wrap;
+  max-width: 100%;
+  margin: 0;
+  color: var(--text-dim); font-size: 0.85rem; text-align: center;
+}
+/* Card names on these sites are routinely a sentence with a series and a
+   version in it, and there is no word to break at in "Name|Series-v2". */
+#viewer-name { overflow-wrap: anywhere; }
+.viewer-original { color: var(--accent); white-space: nowrap; }
+
+.viewer-close {
+  position: absolute; top: 14px; right: 16px; z-index: 2;
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: rgba(8, 9, 12, 0.72);
+  color: var(--text);
+  font-size: 1.35rem; line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.viewer-close:hover { background: var(--bg-raised); border-color: var(--text-faint); }
+.viewer-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .token-field { margin-bottom: 13px; }
 .token-field label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 3px; }
 .token-field .hint { font-size: 0.78rem; margin-bottom: 5px; }
@@ -1371,6 +1515,28 @@ textarea::-webkit-scrollbar-thumb:hover,
     box-shadow: 0 0 0 2px rgba(8, 9, 12, 0.55);
   }
 
+  /* Same again for the corner that opens the picture: it is the same problem,
+     and a mis-hit here costs a selection too. */
+  .bulk-card-zoom {
+    width: 28px; height: 28px; right: 7px; bottom: 7px;
+    box-shadow: 0 0 0 2px rgba(8, 9, 12, 0.55);
+  }
+  .bulk-card-zoom svg { width: 14px; height: 14px; }
+
+  /* ---------------- full-size image ---------------- */
+
+  /* Less margin around the picture, because there is far less to give: a phone
+     screen spent on padding is screen not spent on the thing being looked at.
+     dvh rather than vh - the address bar comes and goes, and vh here would put
+     the caption behind it. */
+  .viewer { padding: 12px; }
+  .viewer-inner { gap: 8px; }
+  .viewer-caption { font-size: 0.8rem; gap: 10px; }
+  /* Clear of the close button, which is now over the top corner of a picture
+     that reaches nearly to the edge of the screen. */
+  .viewer-stage { padding-top: 34px; }
+  .viewer-close { top: 10px; right: 10px; width: 38px; height: 38px; }
+
   /* ---------------- progress ---------------- */
 
   /* Pinned to the bottom of the screen for as long as its real position is
@@ -1521,6 +1687,14 @@ textarea::-webkit-scrollbar-thumb:hover,
     background: var(--accent-strong);
     border-color: var(--accent-strong);
     color: #fff;
+  }
+
+  /* And the zoom corner, which has no such state to restate: it is lit while a
+     finger is on it and dark otherwise, so the hover is simply undone. */
+  .bulk-card-zoom:hover {
+    background: rgba(8, 9, 12, 0.72);
+    border-color: rgba(230, 233, 240, 0.35);
+    color: var(--text);
   }
 
   .btn:hover:not(:disabled) { background: var(--bg-input); border-color: var(--border-strong); }

@@ -324,6 +324,45 @@
   </div>
 </div>
 
+<!-- ============================ FULL-SIZE IMAGE ============================ -->
+<!-- A tile draws a card's picture 178px wide, and on two of the three sites the
+     file behind that tile is not the picture the author uploaded but a copy the
+     CDN resized for grids. This is where the real one is shown: the button in
+     the bottom corner of a tile opens it here, as large as the window has room
+     for, over a dimmed page.
+       Empty until something is opened, and src is dropped again on close. A
+     full-resolution card image is routinely a megabyte, so nothing here is
+     fetched - or kept - unless somebody actually asked to look at it.
+       Last-in-wins, one element: opening a second picture reuses this one
+     rather than stacking another over it. -->
+<div id="image-viewer" class="viewer hidden" role="dialog" aria-modal="true" aria-label="Card image">
+  <div class="viewer-scrim"></div>
+
+  <!-- The picture and its caption share a column; the stage is the part that
+       gets whatever height is left, because an image can only be told to fit
+       the window in both directions at once inside a box that knows how tall
+       it is. -->
+  <div class="viewer-inner">
+    <div class="viewer-stage">
+      <img id="viewer-img" alt="" referrerpolicy="no-referrer" />
+
+      <!-- Only up while the full picture is on its way, and only when the
+           tile's thumbnail is standing in for it underneath. -->
+      <p id="viewer-wait" class="viewer-wait hidden">Loading full image&hellip;</p>
+    </div>
+
+    <p class="viewer-caption">
+      <span id="viewer-name"></span>
+      <!-- The one thing this popup cannot do is show a picture larger than the
+           window. For the rare case of wanting to look closer than that, the
+           file itself is one click away. -->
+      <a id="viewer-original" class="viewer-original" target="_blank" rel="noopener noreferrer">Open original</a>
+    </p>
+  </div>
+
+  <button id="viewer-close" class="viewer-close" type="button" aria-label="Close image">&times;</button>
+</div>
+
 <!-- ============================ TOUR ============================ -->
 <!-- The first-visit walkthrough. Empty on purpose - every word in it comes
      from the step list in js/tour.js, and the highlight is positioned from

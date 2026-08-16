@@ -432,6 +432,13 @@ const chub = {
         // showed them would be twenty-four extra requests to draw a grid.
         // Both stay off until the card is actually converted.
         avatarUrl: n.avatar_url || n.max_res_url || '',
+        // The same picture at the size it was uploaded, for the viewer the
+        // corner of a tile opens. chub publishes both: `avatar_url` is the
+        // small copy its own grid draws with and is what the tile wants, and
+        // `max_res_url` is the original - worth its megabyte only once
+        // somebody has asked to look at it, which is why the two are separate
+        // fields rather than one.
+        fullAvatarUrl: n.max_res_url || n.avatar_url || '',
         cardUrl: `https://chub.ai/characters/${n.fullPath}`,
         creator: (n.fullPath || '').split('/')[0],
       })),
@@ -700,6 +707,10 @@ const characterTavern = {
         tokens: Number(h.totalTokens) || 0,
         lorebook: !!h.hasLorebook,
         avatarUrl: this.thumbUrlFor(h.path),
+        // The unresized file behind that thumbnail - see thumbUrlFor for why
+        // the grid does not draw with it. Fetched only when the viewer is
+        // opened on a card.
+        fullAvatarUrl: this.avatarUrlFor(h.path),
         cardUrl: `https://character-tavern.com/character/${h.path}`,
         creator: h.author,
       })),
@@ -1078,6 +1089,10 @@ const janitorai = {
         // them in an <img> the way the grid does with an avatar, and it is only
         // conversion that needs them inlined into the card.
         gallery: imagesFromHtml(n.description).slice(0, JAI_GALLERY_MAX),
+        // No `fullAvatarUrl` beside it, unlike the other two: this host serves
+        // the file the author uploaded and nothing else, so the tile and the
+        // full-size viewer are looking at the same URL. The viewer falls back
+        // to this one.
         avatarUrl: this.avatarUrlFor(n.avatar),
         cardUrl: this.cardUrlFor(n.id),
         creator: clean(n.creator_name),
