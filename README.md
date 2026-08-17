@@ -143,6 +143,10 @@ and the app asks you to confirm before letting the cards in. That question lands
 rather than this one, so a hint appears beside the Import button you pressed, pointing you at the tab
 that is waiting for an answer.
 
+Refreshing Casual Character Chat mid-session costs you nothing: it recognises this tool again
+afterwards and keeps importing without asking, and an Import pressed while it is still reloading
+waits for it to come back rather than disappearing into the gap.
+
 Importing the same card twice is harmless — the app skips anything whose id it already holds rather
 than overwriting your copy.
 

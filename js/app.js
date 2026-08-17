@@ -13,7 +13,7 @@ import {
   listCardsLight, getSetting, setSetting,
 } from './db.js';
 import { maybeStartTour } from './tour.js';
-import { connect, sendBackup, focusApp } from './ccc-link.js';
+import { connect, ready, sendBackup, focusApp } from './ccc-link.js';
 
 const $ = id => document.getElementById(id);
 
@@ -181,11 +181,11 @@ async function importToCcc(button, load, describe) {
     const characters = await load();
     if (!characters.length) return false;
 
-    // Waited for here rather than left to sendBackup, which awaits the same
-    // promise a line later: until the app has answered there is nothing over
-    // there to be confirmed, and a cold tab still pulling down its starter pack
-    // would otherwise be pointed at for a minute while it loads.
-    await session.ready;
+    // Waited for here rather than left to sendBackup, which asks again a line
+    // later: until the app has answered there is nothing over there to be
+    // confirmed, and a cold tab still pulling down its starter pack - or one in
+    // the middle of a refresh - would otherwise be pointed at while it loads.
+    await ready(session);
     hint = confirmHint(button, session.opened);
 
     const result = await sendBackup(session, toCccBackup(characters));

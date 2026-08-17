@@ -53,6 +53,13 @@ export const PROTOCOL_VERSION = 1;
 // that it was launched (rather than opened cold) and who to post back to.
 export const LAUNCH_PARAM = 'ccc-import-from';
 
+// And a one-off token beside it, which is the app's own way of recognising this
+// tab again after it has been refreshed. Its window handle on us does not
+// survive that; a token in its sessionStorage does. Sent back with every card
+// so a refresh mid-session costs nobody a confirm dialog. Older copies of the
+// app never send one, and simply carry on recognising us by our window.
+export const LAUNCH_TOKEN_PARAM = 'ccc-import-token';
+
 // Named so a second Import press reuses the tab the first one opened instead
 // of stacking up windows.
 const WINDOW_NAME = 'ccc-import-target';
@@ -83,35 +90,47 @@ const IMPORT_TIMEOUT_MS = 300_000;
 // reloads, which a URL hash we deliberately erased cannot; and it is gone when
 // the tab is, which is when the opener is gone too.
 const STORAGE_KEY = 'ccc-import-launcher';
+const TOKEN_KEY = 'ccc-import-token';
 
-const launcher = readLaunchOrigin();
+const { origin: launcher, token: launchToken } = readLaunch();
 
-function readLaunchOrigin() {
+function readLaunch() {
   // An opener is not optional. Whatever a stored or pasted origin says, the
   // cards go to a *window*, and without one there is nothing to answer.
-  if (!window.opener || window.opener.closed) return '';
+  if (!window.opener || window.opener.closed) return { origin: '', token: '' };
 
   let origin = '';
+  let token = '';
   try {
     const hash = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
-    const value = new URLSearchParams(hash).get(LAUNCH_PARAM);
+    const params = new URLSearchParams(hash);
+    const value = params.get(LAUNCH_PARAM);
     if (value) origin = decodeURIComponent(value);
+    const secret = params.get(LAUNCH_TOKEN_PARAM);
+    if (secret) token = decodeURIComponent(secret);
   } catch {
     origin = '';
+    token = '';
   }
 
   if (origin) {
-    try { sessionStorage.setItem(STORAGE_KEY, origin); } catch { /* private mode; fall through */ }
+    try {
+      sessionStorage.setItem(STORAGE_KEY, origin);
+      sessionStorage.setItem(TOKEN_KEY, token);
+    } catch { /* private mode; fall through */ }
     history.replaceState(null, '', location.pathname + location.search);
-    return origin;
+    return { origin, token };
   }
 
   // No hash: either a reload of a launched tab, or a tab opened by something
   // that is not the app. The stored origin tells the two apart.
   try {
-    return sessionStorage.getItem(STORAGE_KEY) || '';
+    return {
+      origin: sessionStorage.getItem(STORAGE_KEY) || '',
+      token: sessionStorage.getItem(TOKEN_KEY) || '',
+    };
   } catch {
-    return '';
+    return { origin: '', token: '' };
   }
 }
 
@@ -138,10 +157,10 @@ let session = null;
  * see the click that led to it. Awaiting a card out of IndexedDB first is
  * enough to have the popup blocked instead.
  *
- * Returns synchronously. The waiting is in `.ready`, so the caller can load
- * its card while the app boots in the other tab.
+ * Returns synchronously, with the app already being pinged, so the caller can
+ * load its cards while the app boots in the other tab. `ready()` is the wait.
  *
- * @returns {{win: Window, origin: string, ready: Promise<void>, opened: boolean}}
+ * @returns {{win: Window, origin: string, opened: boolean, token: string}}
  */
 export function connect() {
   if (session && !session.win.closed) return session;
@@ -149,7 +168,7 @@ export function connect() {
   // The launcher is preferred while it is still there. Someone who came from
   // the app and then closed that tab falls through to opening a fresh one.
   if (launcher && window.opener && !window.opener.closed) {
-    session = makeSession(window.opener, launcher, false);
+    session = makeSession(window.opener, launcher, false, launchToken);
     return session;
   }
 
@@ -159,14 +178,43 @@ export function connect() {
     'Your browser blocked the Casual Character Chat tab. Allow pop-ups for this site, or use Download instead.'
   );
 
-  session = makeSession(win, url.origin, true);
+  // No token: a tab we opened ourselves was never in a position to give us one,
+  // and it will ask about every card. That is the bargain of arriving uninvited.
+  session = makeSession(win, url.origin, true, '');
   return session;
 }
 
-function makeSession(win, origin, opened) {
-  const s = { win, origin, opened, ready: null };
-  s.ready = handshake(s);
+function makeSession(win, origin, opened, token) {
+  const s = { win, origin, opened, token, checking: null };
+  ready(s);                       // start pinging now; the caller waits later
   return s;
+}
+
+/**
+ * Resolve once the app is listening.
+ *
+ * Asked again before every send rather than answered once at connect, because
+ * the app's tab can be reloaded at any moment while this one stays open. For
+ * the second or two it takes to come back there is nobody on the other end,
+ * and a message posted into that gap is not queued or bounced - it is simply
+ * gone. The import would then sit there until its five-minute timeout with
+ * nothing to show for it, which is the worst version of "the app is busy".
+ *
+ * Against a live app this costs one round trip and returns in about a
+ * millisecond. Against a reloading one it waits exactly as long as the reload.
+ *
+ * Concurrent callers share the ping in flight; the next caller after it settles
+ * starts a fresh one, which is the point - a stale yes is worth nothing here.
+ */
+export function ready(s) {
+  if (!s.checking) {
+    const settled = () => { s.checking = null; };
+    s.checking = handshake(s);
+    // Attached, not chained: the caller gets the original promise and owns its
+    // rejection. Without this the clean-up branch would be an unhandled one.
+    s.checking.then(settled, settled);
+  }
+  return s.checking;
 }
 
 // Ping until it answers rather than waiting for it to announce itself. An app
@@ -230,12 +278,14 @@ let nextRequestId = 1;
  * Hand a backup envelope to the connected app and wait for it to say what it
  * did with it.
  *
- * @param {{win: Window, origin: string, ready: Promise<void>}} s from connect()
+ * @param {{win: Window, origin: string, token: string}} s from connect()
  * @param {Object} backup a v3 backup object, as toCccBackup builds
  * @returns {Promise<{added: number, skipped: number, cancelled: boolean}>}
  */
 export async function sendBackup(s, backup) {
-  await s.ready;
+  // Checked here as well as by the caller, which is not waste: the app can be
+  // reloaded in the moment between the two, and this is the one that matters.
+  await ready(s);
   if (s.win.closed) throw new Error('The Casual Character Chat tab was closed before the import finished.');
 
   const id = nextRequestId++;
@@ -274,7 +324,10 @@ export async function sendBackup(s, backup) {
     }, IMPORT_TIMEOUT_MS);
 
     try {
-      s.win.postMessage({ protocol: PROTOCOL, v: PROTOCOL_VERSION, type: 'import', id, backup }, target);
+      s.win.postMessage(
+        { protocol: PROTOCOL, v: PROTOCOL_VERSION, type: 'import', id, backup, token: s.token },
+        target
+      );
     } catch (err) {
       cleanup();
       // Structured clone only refuses things a converted card never holds
