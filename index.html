@@ -249,6 +249,20 @@
      mid-sentence. -->
 <div id="success-toast" class="toast" role="status" aria-live="polite"></div>
 
+<!-- ====================== CONFIRM-OVER-THERE HINT ====================== -->
+<!-- Casual Character Chat asks before letting cards in from a page it did not
+     open itself, and that question lands on the *other* tab - the one nobody is
+     looking at, because the press that started the import was here. Without
+     this the import just appears to hang. Positioned against whichever Import
+     button was pressed by app.js; empty here because both the wording and the
+     anchor belong to the import that is running. -->
+<div id="confirm-hint" class="confirm-hint hidden" role="status" aria-live="polite">
+  <span id="confirm-hint-arrow" class="confirm-hint-arrow" aria-hidden="true"></span>
+  <strong id="confirm-hint-title"></strong>
+  <p id="confirm-hint-text"></p>
+  <button id="confirm-hint-go" class="btn btn-small">Go to that tab</button>
+</div>
+
 <!-- ============================ CARD DETAILS ============================ -->
 <!-- What one tile has room for is a name, a blurb and a face. The rest of what
      a site knows about a card - how big it is, what the author said about it,

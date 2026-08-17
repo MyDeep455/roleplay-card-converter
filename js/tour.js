@@ -48,54 +48,48 @@ const STEPS = [
     place: 'center',
     label: 'Welcome',
     title: 'Grab characters to chat with!',
-    body: 'Search chub.ai, Character Tavern and JanitorAI from right here — no tabs, no copying links. '
-        + 'Pick the ones you like and they are converted and sent straight into Casual Character Chat. '
-        + 'First conversion might take a minute, then it converts fast.',
+    body: 'Search other roleplay platforms for any characters in one place.'
+        + 'Pick the ones you like and send them straight into Casual Character Chat.',
   },
   {
     target: '.search-main',
     place: 'bottom',
     label: 'Step 1',
     title: 'Search without leaving',
-    body: 'Pick a site on the left, type what you are after, and press Search — the same words you '
-        + 'would have typed on the site itself. Leave the box empty to just browse. '
-        + 'The sort menu on the right is that site’s own ordering, so it changes with the site.',
+    body: 'Switch between platforms, type what you are after, and press Search. '
+        + 'Try different sortings as well to see all kinds of results.',
   },
   {
     target: '.advanced-filters',
     place: 'bottom',
     label: 'Step 2',
     title: 'Narrow it down',
-    body: 'Open this for tags to require, tags to shut out, and whether to include adult cards. '
-        + 'Separate several tags with commas. They follow the site too — JanitorAI has no tag boxes '
-        + 'because its search ignores them. A number beside the line means something in there is '
-        + 'still narrowing your results.',
+    body: 'You can use the same filters here as on those platforms. '
+        + 'Include or exclude certain tags and show or hide adult content (NSFW)',
   },
   {
     target: '#bulk-grid',
     place: 'top',
     label: 'Step 3',
     title: 'Tick what you like',
-    body: 'Results land here — a first page of chub.ai characters is already waiting, before you have '
-        + 'searched for anything. Tick the ones you want and convert them in one click. '
+    body: 'Results land here — Tick the ones you want and convert them in one click. '
         + 'Note: Some platforms (such as chub.ai) block NSFW adult content for users outside the U.S. '
-        + 'You’ll need to use a VPN (e.g. NordVPN) to see all unfiltered NSFW characters there.',
+        + 'You’ll need to activate a VPN (e.g. NordVPN) to see all unfiltered NSFW characters.',
   },
   {
     target: '.results-head',
     place: 'bottom',
     label: 'Step 4',
-    title: 'Import. Finished!',
-    body: 'Press “Import” on a card, or “Import all”, and it goes straight into Casual Character Chat — '
-        + 'no file to save, nothing to open. Converted cards also stay here in your browser until you clear them, '
-        + 'and “Download” is still there if you want a backup file of your own.',
+    title: 'Import — Finished!',
+    body: 'Press “Import” and any converted card goes straight into Casual Character Chat. '
+        + 'Only you can see them there — your character cards are always private.',
   },
   {
     target: null,
     place: 'center',
     label: 'Ready',
     title: 'That’s the whole loop',
-    body: 'Search → tick → convert → import.  '
+    body: 'Search → select → convert → import.  '
         + 'You can replay this tour any time from the Tour button up top.',
   },
 ];

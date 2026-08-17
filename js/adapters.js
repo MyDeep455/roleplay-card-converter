@@ -241,7 +241,7 @@ const chub = {
 
       const out = [];
       for (let i = 0; i < urls.length; i++) {
-        ctx.progress?.(`Gallery image ${i + 1}/${urls.length}`);
+        ctx.progress?.(`Gallery images ${i + 1}/${urls.length}`);
         const d = await imageToDataUrl(urls[i], { gallery: true });
         if (d) out.push(d);
       }
@@ -904,7 +904,7 @@ const janitorai = {
     const urls = imagesFromHtml(node.description).slice(0, JAI_GALLERY_MAX);
     const gallery = [];
     for (let i = 0; i < urls.length; i++) {
-      ctx.progress?.(`Gallery image ${i + 1}/${urls.length}`);
+      ctx.progress?.(`Gallery images ${i + 1}/${urls.length}`);
       const d = await imageToDataUrl(urls[i], { gallery: true });
       if (d) gallery.push(d);
     }

@@ -1087,6 +1087,52 @@ textarea::-webkit-scrollbar-thumb:hover,
   .toast.show { transition: opacity 0.15s ease, visibility 0s; }
 }
 
+/* ---------------- the confirm-over-there hint ---------------- */
+
+/* Fixed rather than placed in the flow, because it points at a button that may
+   be sitting in a scrolling list of results: in the flow it would shove that
+   list down by its own height the moment it appeared, moving the very button it
+   is pointing at. The cost is that the browser will not keep it against its
+   anchor, so app.js re-places it on scroll and resize.
+
+   Below the toast (120) and the modals (100) is deliberate: the toast that ends
+   the import may be painted in the same frame this is taken away in, and a
+   dialog opened over the page is a question that has to be answered first. */
+.confirm-hint {
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 90;
+  width: max-content;
+  max-width: min(310px, calc(100vw - 24px));
+  padding: 11px 13px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  text-align: left;
+}
+
+.confirm-hint strong { display: block; margin-bottom: 3px; font-size: 0.88rem; color: var(--accent); }
+.confirm-hint p { margin: 0; color: var(--text-dim); font-size: 0.82rem; }
+.confirm-hint .btn { margin-top: 9px; }
+
+/* A rotated square with two of its borders dropped, so the two that remain
+   continue the card's own outline instead of drawing a box on top of it. */
+.confirm-hint-arrow {
+  position: absolute;
+  top: -5px;
+  width: 9px; height: 9px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-right: none; border-bottom: none;
+  transform: translateX(-50%) rotate(45deg);
+}
+.confirm-hint.is-above .confirm-hint-arrow {
+  top: auto; bottom: -5px;
+  border: 1px solid var(--border-strong);
+  border-left: none; border-top: none;
+}
+
 /* ---------------- modals ---------------- */
 
 .modal {

@@ -139,7 +139,9 @@ what it added.
 button, next to *Create Character*. The app then knows the tool and the tool knows where to answer,
 so importing takes one press and puts you back in the tab you started in.
 Opening it on its own also works; it opens the app itself the first time you press Import,
-and the app asks you to confirm before letting the cards in.
+and the app asks you to confirm before letting the cards in. That question lands on the app's tab
+rather than this one, so a hint appears beside the Import button you pressed, pointing you at the tab
+that is waiting for an answer.
 
 Importing the same card twice is harmless — the app skips anything whose id it already holds rather
 than overwriting your copy.

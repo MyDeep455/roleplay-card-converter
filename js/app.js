@@ -162,6 +162,7 @@ function downloadJson(obj, filename) {
 async function importToCcc(button, load, describe) {
   const label = button.textContent;
   let session;
+  let hint = null;
 
   try {
     session = connect();               // synchronous on purpose - see above
@@ -179,6 +180,13 @@ async function importToCcc(button, load, describe) {
   try {
     const characters = await load();
     if (!characters.length) return false;
+
+    // Waited for here rather than left to sendBackup, which awaits the same
+    // promise a line later: until the app has answered there is nothing over
+    // there to be confirmed, and a cold tab still pulling down its starter pack
+    // would otherwise be pointed at for a minute while it loads.
+    await session.ready;
+    hint = confirmHint(button, session.opened);
 
     const result = await sendBackup(session, toCccBackup(characters));
 
@@ -203,10 +211,147 @@ async function importToCcc(button, load, describe) {
     showToast(describeError(err), 'warn');
     return false;
   } finally {
+    // Before the toast is painted, not after: `finally` runs while the return
+    // value is still on its way out, so both changes land in the same frame and
+    // the hint does not flash underneath the answer it was waiting for.
+    hint?.end();
     setBusy(button, false);
     button.textContent = label;
   }
 }
+
+/* ---------------- "confirm it over there" ---------------- *
+ *
+ * The app asks before letting cards in from a page it did not open itself, and
+ * it asks on its own tab - which is never the tab anyone is looking at, because
+ * the press that started the import was here. Left alone, an import that is
+ * really only waiting on a person looks exactly like one that has hung: a
+ * disabled button with a ring on it, and the reason sitting one tab away.
+ *
+ * Nothing in the protocol says the question was asked - the app speaks once
+ * more, and only to say what it did - so it is inferred, and the two cases are
+ * not equally certain:
+ *
+ *   we opened the app    It never opened this tool, so it has no window to
+ *                        recognise and always asks. Said at once, plainly.
+ *
+ *   the app opened us    It knows this tab and lets the cards straight in -
+ *                        unless it was reloaded since, which quietly costs it
+ *                        that memory and brings the question back. Too rare to
+ *                        say up front and too confusing to leave unsaid, so it
+ *                        is left to a timer: if the app has still not answered
+ *                        after a few seconds, its dialog is the likeliest
+ *                        thing holding it up.
+ */
+
+// Comfortably past a merge of its own: a batch of cards carrying galleries is a
+// real write and not instant, and an import that is simply busy should finish
+// without ever having claimed somebody was being asked something.
+const CONFIRM_HINT_AFTER_MS = 3000;
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
+
+const HINT_GAP = 10;    // between the hint and the button it belongs to
+const HINT_EDGE = 12;   // and between the hint and the edge of the window
+
+// There is one hint and there can be two imports - a row's Import press is not
+// blocked while "Import all" is still waiting - so it is owned rather than
+// merely shown. A later import takes it over; the earlier one then leaves it
+// alone on its way out instead of pulling it out from under the newer one.
+let hintOwner = null;
+let hintAnchor = null;
+
+/**
+ * Say that the other tab is waiting on an answer, near the button that started
+ * it. Returns a handle; call `.end()` when the import lands, however it lands.
+ *
+ * @param button   the Import control that was pressed, and what this points at
+ * @param certain  true when the app is one we opened and will therefore ask
+ */
+function confirmHint(button, certain) {
+  const owner = {};
+
+  owner.timer = setTimeout(() => {
+    hintOwner = owner;
+    hintAnchor = button;
+
+    const hint = $('confirm-hint');
+
+    // Unhidden before it is written, which looks backwards and is not: several
+    // screen readers ignore a live region that changes while it is still
+    // display:none. Nothing is painted between these lines, so there is no
+    // flash of the previous import's wording.
+    hint.classList.remove('hidden');
+    $('confirm-hint-title').textContent = certain
+      ? 'Confirm this in Casual Character Chat'
+      : 'Still waiting on Casual Character Chat';
+    $('confirm-hint-text').textContent = certain
+      ? 'That tab is asking whether to let these cards in. Say yes there and the import finishes.'
+      : 'If that tab is asking whether to let these cards in, say yes there and the import finishes.';
+
+    placeConfirmHint();
+    addEventListener('scroll', placeConfirmHint, { capture: true, passive: true });
+    addEventListener('resize', placeConfirmHint, { passive: true });
+  }, certain ? 0 : CONFIRM_HINT_AFTER_MS);
+
+  owner.end = () => {
+    clearTimeout(owner.timer);
+    if (hintOwner && hintOwner !== owner) return;
+
+    hintOwner = null;
+    hintAnchor = null;
+    $('confirm-hint').classList.add('hidden');
+    removeEventListener('scroll', placeConfirmHint, { capture: true });
+    removeEventListener('resize', placeConfirmHint);
+  };
+
+  return owner;
+}
+
+function placeConfirmHint() {
+  const hint = $('confirm-hint');
+  if (!hintAnchor || hint.classList.contains('hidden')) return;
+
+  const r = hintAnchor.getBoundingClientRect();
+  const w = hint.offsetWidth, h = hint.offsetHeight;
+  const vw = innerWidth, vh = innerHeight;
+  const arrow = $('confirm-hint-arrow');
+
+  // Scrolled away from its button, the hint has nothing left to point at. It
+  // stays - it is still the answer to why nothing is happening - but it goes to
+  // the foot of the window with its pointer off, rather than pressing itself
+  // against an edge and aiming at whatever happens to be behind it.
+  if (r.bottom < HINT_EDGE || r.top > vh - HINT_EDGE) {
+    arrow.hidden = true;
+    hint.classList.remove('is-above');
+    hint.style.transform =
+      `translate(${Math.round((vw - w) / 2)}px, ${Math.round(vh - h - HINT_EDGE)}px)`;
+    return;
+  }
+
+  // Below by preference. Both Import buttons sit above what they act on, so
+  // downwards is the direction with page to spare, and upwards would cover the
+  // results the hint is talking about.
+  const above = r.bottom + HINT_GAP + h > vh - HINT_EDGE;
+  const top = above ? r.top - HINT_GAP - h : r.bottom + HINT_GAP;
+  const left = clamp(r.left + r.width / 2 - w / 2, HINT_EDGE, Math.max(HINT_EDGE, vw - w - HINT_EDGE));
+
+  arrow.hidden = false;
+  hint.classList.toggle('is-above', above);
+  hint.style.transform =
+    `translate(${Math.round(left)}px, ${Math.round(clamp(top, HINT_EDGE, Math.max(HINT_EDGE, vh - h - HINT_EDGE)))}px)`;
+
+  // Follows the button when the card itself has been pushed off its centre by
+  // the edge of the window, so it still points at the button and not at the
+  // middle of nowhere. Kept clear of the rounded corners at either end.
+  arrow.style.left = `${Math.round(clamp(r.left + r.width / 2 - left, 16, Math.max(16, w - 16)))}px`;
+}
+
+// The whole point is to get someone over there, so the hint offers the trip
+// rather than only describing it. Cross-origin focus needs a gesture to be
+// allowed, and a click is one - which is why this is a button and not something
+// the hint does by itself on the way up.
+$('confirm-hint-go').addEventListener('click', focusApp);
 
 function confirmDialog(title, text, confirmLabel = 'Delete') {
   return new Promise(resolve => {
